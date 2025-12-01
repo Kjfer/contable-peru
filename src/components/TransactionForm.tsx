@@ -97,23 +97,61 @@ export function TransactionForm({ onClose }: TransactionFormProps) {
         </div>
       </div>
 
-      {transactionType !== 'transfer' && (
-        <div>
-          <Label>Categoría</Label>
-          <Select onValueChange={(value) => setValue('categoryId', parseInt(value))}>
-            <SelectTrigger>
-              <SelectValue placeholder="Seleccionar categoría" />
-            </SelectTrigger>
-            <SelectContent>
-              {filteredCategories.map((category) => (
-                <SelectItem key={category.id} value={category.id.toString()}>
-                  {category.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
+      <div className="grid gap-4 md:grid-cols-2">
+        {transactionType !== 'transfer' && (
+          <div>
+            <Label>Categoría</Label>
+            <Select onValueChange={(value) => setValue('categoryId', parseInt(value))}>
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar categoría" />
+              </SelectTrigger>
+              <SelectContent>
+                {filteredCategories.map((category) => (
+                  <SelectItem key={category.id} value={category.id.toString()}>
+                    {category.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {transactionType === 'expense' && (
+          <div>
+            <Label>Cuenta de Egreso</Label>
+            <Select onValueChange={(value) => setValue('fromAccount', value as AccountType)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar cuenta" />
+              </SelectTrigger>
+              <SelectContent>
+                {ACCOUNT_TYPES.map((account) => (
+                  <SelectItem key={account} value={account}>
+                    {account}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {transactionType === 'income' && (
+          <div>
+            <Label>Cuenta de Ingreso</Label>
+            <Select onValueChange={(value) => setValue('toAccount', value as AccountType)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Seleccionar cuenta" />
+              </SelectTrigger>
+              <SelectContent>
+                {ACCOUNT_TYPES.map((account) => (
+                  <SelectItem key={account} value={account}>
+                    {account}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+      </div>
 
       {transactionType === 'transfer' && (
         <div className="grid gap-4 md:grid-cols-2">

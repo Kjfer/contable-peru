@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, ArrowLeftRight, FileText, BarChart3, Upload } from 'lucide-react';
+import { LayoutDashboard, ArrowLeftRight, FileText, BarChart3, Upload, BookOpen, Book } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface LayoutProps {
@@ -11,6 +11,8 @@ const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/transactions', label: 'Transacciones', icon: ArrowLeftRight },
   { path: '/invoices', label: 'Facturación', icon: FileText },
+  { path: '/accounting-entries', label: 'Asientos', icon: BookOpen },
+  { path: '/general-ledger', label: 'Libro Mayor', icon: Book },
   { path: '/reports', label: 'Reportes', icon: BarChart3 },
   { path: '/import', label: 'Importar', icon: Upload },
 ];

@@ -7,6 +7,8 @@ import { Layout } from "@/components/Layout";
 import Dashboard from "./pages/Dashboard";
 import Transactions from "./pages/Transactions";
 import Invoices from "./pages/Invoices";
+import AccountingEntries from "./pages/AccountingEntries";
+import GeneralLedger from "./pages/GeneralLedger";
 import Reports from "./pages/Reports";
 import Import from "./pages/Import";
 import NotFound from "./pages/NotFound";
@@ -24,6 +26,8 @@ const App = () => (
             <Route path="/" element={<Dashboard />} />
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/invoices" element={<Invoices />} />
+            <Route path="/accounting-entries" element={<AccountingEntries />} />
+            <Route path="/general-ledger" element={<GeneralLedger />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/import" element={<Import />} />
             <Route path="*" element={<NotFound />} />

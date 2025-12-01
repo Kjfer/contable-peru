@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { TrendingUp, TrendingDown, DollarSign, Activity, PieChart } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Activity, PieChart, Receipt } from 'lucide-react';
 import { MetricCard } from '@/components/MetricCard';
 import { BusinessFilter } from '@/components/BusinessFilter';
 import { PeriodFilter } from '@/components/PeriodFilter';
@@ -18,6 +18,21 @@ export default function Dashboard() {
 
   const metrics = calculateFinancialMetrics(filteredTransactions, MOCK_INVOICES);
   const ratios = calculateFinancialRatios(100000, 40000, 60000, metrics.netProfit);
+
+  // Calcular IGV de compras y ventas
+  const filteredInvoices = selectedBusiness === 'all'
+    ? MOCK_INVOICES
+    : MOCK_INVOICES.filter(inv => inv.businessId === selectedBusiness);
+
+  const igvCompras = filteredInvoices
+    .filter(inv => inv.type === 'purchase')
+    .reduce((sum, inv) => sum + inv.igv, 0);
+
+  const igvVentas = filteredInvoices
+    .filter(inv => inv.type === 'sale')
+    .reduce((sum, inv) => sum + inv.igv, 0);
+
+  const creditoFiscalNeto = igvVentas - igvCompras;
 
   const businessComparison = [
     { name: 'Negocio Principal', ingresos: 50000, egresos: 30000, utilidad: 20000 },
@@ -70,6 +85,51 @@ export default function Dashboard() {
           value={formatPercentage(metrics.profitMargin)}
           icon={Activity}
         />
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-3">
+        <Card className="p-6 transition-all hover:shadow-lg border-l-4 border-l-destructive">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-muted-foreground">IGV Compras (Crédito Fiscal)</p>
+              <p className="mt-2 text-3xl font-bold financial-number text-destructive">{formatCurrency(igvCompras)}</p>
+              <p className="mt-2 text-xs text-muted-foreground">A favor de la empresa</p>
+            </div>
+            <div className="rounded-lg bg-destructive/10 p-3">
+              <Receipt className="h-6 w-6 text-destructive" />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6 transition-all hover:shadow-lg border-l-4 border-l-success">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-muted-foreground">IGV Ventas (Débito Fiscal)</p>
+              <p className="mt-2 text-3xl font-bold financial-number text-success">{formatCurrency(igvVentas)}</p>
+              <p className="mt-2 text-xs text-muted-foreground">Por pagar a SUNAT</p>
+            </div>
+            <div className="rounded-lg bg-success/10 p-3">
+              <Receipt className="h-6 w-6 text-success" />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6 transition-all hover:shadow-lg border-l-4 border-l-primary">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-muted-foreground">IGV Neto a Declarar</p>
+              <p className={`mt-2 text-3xl font-bold financial-number ${creditoFiscalNeto >= 0 ? 'text-primary' : 'text-accent'}`}>
+                {formatCurrency(Math.abs(creditoFiscalNeto))}
+              </p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                {creditoFiscalNeto >= 0 ? 'A pagar' : 'A favor'}
+              </p>
+            </div>
+            <div className="rounded-lg bg-primary/10 p-3">
+              <Receipt className="h-6 w-6 text-primary" />
+            </div>
+          </div>
+        </Card>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

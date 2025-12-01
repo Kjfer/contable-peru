@@ -1,10 +1,15 @@
 import { useState, useRef } from 'react';
 import { Upload, FileSpreadsheet, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 
-export default function Import() {
+interface ImportDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -38,6 +43,7 @@ export default function Import() {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+      onOpenChange(false);
     }, 2000);
   };
 
@@ -47,33 +53,32 @@ export default function Import() {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Importar Transacciones</h1>
-        <p className="mt-1 text-muted-foreground">Carga masiva de datos desde Excel o CSV</p>
-      </div>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Importar Transacciones desde CSV/Excel</DialogTitle>
+        </DialogHeader>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="p-6">
-          <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold">
-            <Upload className="h-5 w-5" />
-            Cargar Archivo
-          </h3>
-          
+        <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-4">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <Upload className="h-4 w-4" />
+              Cargar Archivo
+            </h3>
+            
             <div
-              className="flex min-h-[200px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-border bg-secondary/30 p-8 transition-colors hover:border-primary hover:bg-secondary/50"
+              className="flex min-h-[180px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-border bg-secondary/30 p-6 transition-colors hover:border-primary hover:bg-secondary/50"
               onClick={() => fileInputRef.current?.click()}
             >
-              <FileSpreadsheet className="mb-4 h-12 w-12 text-muted-foreground" />
+              <FileSpreadsheet className="mb-3 h-10 w-10 text-muted-foreground" />
               <p className="text-center text-sm font-medium">
                 Haz clic para seleccionar un archivo
               </p>
               <p className="mt-1 text-center text-xs text-muted-foreground">
-                Formatos aceptados: CSV, XLSX, XLS
+                Formatos: CSV, XLSX, XLS
               </p>
               {file && (
-                <p className="mt-4 rounded-md bg-primary/10 px-3 py-1 text-sm text-primary">
+                <p className="mt-3 rounded-md bg-primary/10 px-3 py-1 text-sm text-primary">
                   {file.name}
                 </p>
               )}
@@ -95,48 +100,46 @@ export default function Import() {
               {isProcessing ? 'Procesando...' : 'Importar Transacciones'}
             </Button>
           </div>
-        </Card>
 
-        <Card className="p-6">
-          <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold">
-            <FileSpreadsheet className="h-5 w-5" />
-            Formato Requerido
-          </h3>
-          
           <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              El archivo debe contener las siguientes columnas en orden:
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <FileSpreadsheet className="h-4 w-4" />
+              Formato Requerido
+            </h3>
+            
+            <p className="text-xs text-muted-foreground">
+              El archivo debe contener las siguientes columnas:
             </p>
 
-            <div className="rounded-lg border border-border bg-secondary/30 p-4">
-              <ol className="space-y-2 text-sm">
+            <div className="rounded-lg border border-border bg-secondary/30 p-3">
+              <ol className="space-y-1.5 text-xs">
                 <li className="flex items-start gap-2">
                   <span className="font-semibold text-primary">1.</span>
-                  <span><strong>Fecha</strong> (formato: DD/MM/YYYY)</span>
+                  <span><strong>Fecha</strong> (DD/MM/YYYY)</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="font-semibold text-primary">2.</span>
-                  <span><strong>Tipo</strong> (Ingreso, Egreso, Transferencia)</span>
+                  <span><strong>Tipo</strong> (Ingreso/Egreso/Transferencia)</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="font-semibold text-primary">3.</span>
-                  <span><strong>Negocio</strong> (nombre del negocio)</span>
+                  <span><strong>Negocio</strong></span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="font-semibold text-primary">4.</span>
-                  <span><strong>Categoría</strong> (ID de categoría)</span>
+                  <span><strong>Categoría</strong></span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="font-semibold text-primary">5.</span>
-                  <span><strong>Monto</strong> (número decimal)</span>
+                  <span><strong>Monto</strong></span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="font-semibold text-primary">6.</span>
-                  <span><strong>Cuenta Origen</strong> (para transferencias)</span>
+                  <span><strong>Cuenta Origen</strong> (transferencias)</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="font-semibold text-primary">7.</span>
-                  <span><strong>Cuenta Destino</strong> (para transferencias)</span>
+                  <span><strong>Cuenta Destino</strong> (transferencias)</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="font-semibold text-primary">8.</span>
@@ -153,13 +156,14 @@ export default function Import() {
               variant="outline"
               onClick={handleDownloadTemplate}
               className="w-full gap-2"
+              size="sm"
             >
-              <Download className="h-4 w-4" />
-              Descargar Plantilla de Ejemplo
+              <Download className="h-3 w-3" />
+              Descargar Plantilla
             </Button>
           </div>
-        </Card>
-      </div>
-    </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, ArrowLeftRight, FileText, BarChart3, Upload, BookOpen, Book } from 'lucide-react';
+import { LayoutDashboard, ArrowLeftRight, FileText, BarChart3, BookOpen, Book } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface LayoutProps {
@@ -14,7 +14,6 @@ const navItems = [
   { path: '/accounting-entries', label: 'Asientos', icon: BookOpen },
   { path: '/general-ledger', label: 'Libro Mayor', icon: Book },
   { path: '/reports', label: 'Reportes', icon: BarChart3 },
-  { path: '/import', label: 'Importar', icon: Upload },
 ];
 
 export function Layout({ children }: LayoutProps) {

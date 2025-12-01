@@ -10,7 +10,6 @@ import Invoices from "./pages/Invoices";
 import AccountingEntries from "./pages/AccountingEntries";
 import GeneralLedger from "./pages/GeneralLedger";
 import Reports from "./pages/Reports";
-import Import from "./pages/Import";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,7 +28,6 @@ const App = () => (
             <Route path="/accounting-entries" element={<AccountingEntries />} />
             <Route path="/general-ledger" element={<GeneralLedger />} />
             <Route path="/reports" element={<Reports />} />
-            <Route path="/import" element={<Import />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Layout>

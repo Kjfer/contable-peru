@@ -1,8 +1,9 @@
-import { FileText, Download } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { BusinessFilter } from '@/components/BusinessFilter';
 import { PeriodFilter } from '@/components/PeriodFilter';
+import { IncomeStatement } from '@/components/IncomeStatement';
+import { BalanceSheet } from '@/components/BalanceSheet';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -10,47 +11,18 @@ export default function Reports() {
   const [selectedBusiness, setSelectedBusiness] = useState('all');
   const [selectedPeriod, setSelectedPeriod] = useState('current-month');
 
-  const reports = [
-    {
-      id: 'income-statement',
-      title: 'Estado de Resultados',
-      description: 'Reporte de ingresos y egresos del período',
-      icon: FileText,
-    },
-    {
-      id: 'balance-sheet',
-      title: 'Balance General',
-      description: 'Situación patrimonial de la empresa',
-      icon: FileText,
-    },
-    {
-      id: 'sales-book',
-      title: 'Libro de Ventas',
-      description: 'Registro de todas las facturas de venta',
-      icon: FileText,
-    },
-    {
-      id: 'purchase-book',
-      title: 'Libro de Compras',
-      description: 'Registro de todas las facturas de compra',
-      icon: FileText,
-    },
-    {
-      id: 'igv-declaration',
-      title: 'Declaración de IGV',
-      description: 'Resumen de IGV a declarar ante SUNAT',
-      icon: FileText,
-    },
-    {
-      id: 'general-ledger',
-      title: 'Libro Mayor',
-      description: 'Movimientos de partida doble por cuenta',
-      icon: FileText,
-    },
-  ];
+  const handleExportIncomeStatement = () => {
+    toast.success('Exportando Estado de Resultados a PDF');
+    // Aquí iría la lógica de exportación a PDF
+  };
 
-  const handleExport = (reportId: string) => {
-    toast.success(`Exportando reporte: ${reports.find(r => r.id === reportId)?.title}`);
+  const handleExportBalanceSheet = () => {
+    toast.success('Exportando Balance General a PDF');
+    // Aquí iría la lógica de exportación a PDF
+  };
+
+  const handleExportIGV = () => {
+    toast.success('Exportando Declaración de IGV a PDF');
     // Aquí iría la lógica de exportación a PDF
   };
 
@@ -59,41 +31,45 @@ export default function Reports() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Reportes Contables</h1>
-          <p className="mt-1 text-muted-foreground">Exporta reportes financieros en PDF</p>
+          <p className="mt-1 text-muted-foreground">Estados financieros y reportes fiscales</p>
         </div>
       </div>
 
-      <div className="flex gap-4">
-        <PeriodFilter value={selectedPeriod} onChange={setSelectedPeriod} />
-        <BusinessFilter value={selectedBusiness} onChange={setSelectedBusiness} />
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex gap-4">
+          <PeriodFilter value={selectedPeriod} onChange={setSelectedPeriod} />
+          <BusinessFilter value={selectedBusiness} onChange={setSelectedBusiness} />
+        </div>
+        <Button onClick={handleExportIGV} className="gap-2">
+          <Download className="h-4 w-4" />
+          Exportar Declaración IGV
+        </Button>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {reports.map((report) => {
-          const Icon = report.icon;
-          return (
-            <Card key={report.id} className="p-6 transition-all hover:shadow-lg">
-              <div className="flex items-start gap-4">
-                <div className="rounded-lg bg-primary/10 p-3">
-                  <Icon className="h-6 w-6 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-foreground">{report.title}</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">{report.description}</p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-4 gap-2"
-                    onClick={() => handleExport(report.id)}
-                  >
-                    <Download className="h-4 w-4" />
-                    Exportar PDF
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          );
-        })}
+      <div className="space-y-6">
+        {/* Estado de Resultados */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-foreground">Estado de Resultados</h2>
+            <Button onClick={handleExportIncomeStatement} variant="outline" className="gap-2">
+              <Download className="h-4 w-4" />
+              Exportar PDF
+            </Button>
+          </div>
+          <IncomeStatement businessId={selectedBusiness} period={selectedPeriod} />
+        </div>
+
+        {/* Balance General */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-foreground">Balance General</h2>
+            <Button onClick={handleExportBalanceSheet} variant="outline" className="gap-2">
+              <Download className="h-4 w-4" />
+              Exportar PDF
+            </Button>
+          </div>
+          <BalanceSheet businessId={selectedBusiness} period={selectedPeriod} />
+        </div>
       </div>
     </div>
   );

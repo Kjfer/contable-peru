@@ -108,6 +108,47 @@ export type Database = {
         }
         Relationships: []
       }
+      chart_of_accounts: {
+        Row: {
+          account_type: string
+          category: string
+          code: string
+          created_at: string | null
+          id: number
+          is_debit_balance: boolean
+          name: string
+          parent_code: string | null
+        }
+        Insert: {
+          account_type: string
+          category: string
+          code: string
+          created_at?: string | null
+          id?: number
+          is_debit_balance?: boolean
+          name: string
+          parent_code?: string | null
+        }
+        Update: {
+          account_type?: string
+          category?: string
+          code?: string
+          created_at?: string | null
+          id?: number
+          is_debit_balance?: boolean
+          name?: string
+          parent_code?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_parent"
+            columns: ["parent_code"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
       invoice_items: {
         Row: {
           created_at: string | null

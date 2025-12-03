@@ -1,73 +1,45 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { BusinessFilter } from '@/components/BusinessFilter';
 import { PeriodFilter } from '@/components/PeriodFilter';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/calculations';
-import { BUSINESSES } from '@/lib/mockData';
+import { useAccountingEntries } from '@/hooks/useAccountingEntries';
+import { useBusinesses } from '@/hooks/useBusinesses';
+import { Loader2 } from 'lucide-react';
+import { startOfMonth, endOfMonth, subMonths, startOfYear, format } from 'date-fns';
 
-interface AccountingEntry {
-  id: string;
-  date: string;
-  transactionId: string;
-  description: string;
-  entries: {
-    account: string;
-    debit: number;
-    credit: number;
-  }[];
-  businessId: string;
+function getPeriodDates(period: string) {
+  const now = new Date();
+  switch (period) {
+    case 'current-month':
+      return { start: format(startOfMonth(now), 'yyyy-MM-dd'), end: format(endOfMonth(now), 'yyyy-MM-dd') };
+    case 'last-month':
+      const lastMonth = subMonths(now, 1);
+      return { start: format(startOfMonth(lastMonth), 'yyyy-MM-dd'), end: format(endOfMonth(lastMonth), 'yyyy-MM-dd') };
+    case 'current-year':
+      return { start: format(startOfYear(now), 'yyyy-MM-dd'), end: format(now, 'yyyy-MM-dd') };
+    default:
+      return { start: undefined, end: undefined };
+  }
 }
-
-// Mock data para asientos contables
-const MOCK_ENTRIES: AccountingEntry[] = [
-  {
-    id: '1',
-    date: '2025-11-15',
-    transactionId: 'TRX-001',
-    description: 'Venta de productos con factura F001-00001',
-    businessId: 'negocio1',
-    entries: [
-      { account: '1041 - Cuentas por Cobrar', debit: 5900, credit: 0 },
-      { account: '7011 - Ventas', debit: 0, credit: 5000 },
-      { account: '4011 - IGV por Pagar', debit: 0, credit: 900 },
-    ],
-  },
-  {
-    id: '2',
-    date: '2025-11-16',
-    transactionId: 'TRX-002',
-    description: 'Pago de planilla mensual',
-    businessId: 'negocio1',
-    entries: [
-      { account: '6211 - Sueldos y Salarios', debit: 3000, credit: 0 },
-      { account: '1041 - Efectivo y Equivalentes', debit: 0, credit: 3000 },
-    ],
-  },
-  {
-    id: '3',
-    date: '2025-11-10',
-    transactionId: 'TRX-003',
-    description: 'Compra de mercadería con factura F002-00050',
-    businessId: 'negocio2',
-    entries: [
-      { account: '6011 - Compras de Mercadería', debit: 3000, credit: 0 },
-      { account: '4011 - IGV por Cobrar', debit: 540, credit: 0 },
-      { account: '4212 - Cuentas por Pagar', debit: 0, credit: 3540 },
-    ],
-  },
-];
 
 export default function AccountingEntries() {
   const [selectedBusiness, setSelectedBusiness] = useState('all');
   const [selectedPeriod, setSelectedPeriod] = useState('current-month');
 
-  const filteredEntries = selectedBusiness === 'all'
-    ? MOCK_ENTRIES
-    : MOCK_ENTRIES.filter(e => e.businessId === selectedBusiness);
+  const { start, end } = useMemo(() => getPeriodDates(selectedPeriod), [selectedPeriod]);
+
+  const { data: entries, isLoading, error } = useAccountingEntries({
+    businessId: selectedBusiness,
+    startDate: start,
+    endDate: end,
+  });
+
+  const { data: businesses } = useBusinesses();
 
   const getBusinessName = (businessId: string) => {
-    return BUSINESSES.find(b => b.id === businessId)?.name || businessId;
+    return businesses?.find(b => b.id === businessId)?.name || businessId;
   };
 
   return (
@@ -84,10 +56,28 @@ export default function AccountingEntries() {
         <BusinessFilter value={selectedBusiness} onChange={setSelectedBusiness} />
       </div>
 
+      {isLoading && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      )}
+
+      {error && (
+        <Card className="p-6">
+          <p className="text-destructive">Error al cargar los asientos contables</p>
+        </Card>
+      )}
+
+      {!isLoading && !error && entries?.length === 0 && (
+        <Card className="p-6">
+          <p className="text-center text-muted-foreground">No hay asientos contables para el período seleccionado</p>
+        </Card>
+      )}
+
       <div className="space-y-4">
-        {filteredEntries.map((entry) => {
-          const totalDebit = entry.entries.reduce((sum, e) => sum + e.debit, 0);
-          const totalCredit = entry.entries.reduce((sum, e) => sum + e.credit, 0);
+        {entries?.map((entry) => {
+          const totalDebit = entry.lines.reduce((sum, e) => sum + e.debit, 0);
+          const totalCredit = entry.lines.reduce((sum, e) => sum + e.credit, 0);
           const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01;
 
           return (
@@ -96,12 +86,12 @@ export default function AccountingEntries() {
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-3">
-                      <Badge variant="outline">{entry.transactionId}</Badge>
+                      <Badge variant="outline">{entry.id.substring(0, 8)}</Badge>
                       <span className="text-sm text-muted-foreground">
                         {new Date(entry.date).toLocaleDateString('es-PE')}
                       </span>
                       <Badge className="bg-primary/10 text-primary">
-                        {getBusinessName(entry.businessId)}
+                        {getBusinessName(entry.business_id)}
                       </Badge>
                     </div>
                     <p className="mt-2 font-medium">{entry.description}</p>
@@ -126,9 +116,11 @@ export default function AccountingEntries() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {entry.entries.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-muted/20">
-                        <td className="px-6 py-3 text-sm">{item.account}</td>
+                    {entry.lines.map((item) => (
+                      <tr key={item.id} className="hover:bg-muted/20">
+                        <td className="px-6 py-3 text-sm">
+                          {item.account_code} - {item.account_name}
+                        </td>
                         <td className="px-6 py-3 text-right">
                           {item.debit > 0 ? (
                             <span className="financial-number font-medium text-foreground">

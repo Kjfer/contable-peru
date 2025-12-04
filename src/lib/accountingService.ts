@@ -65,6 +65,10 @@ interface TransactionData {
   toAccount?: string;
   description: string;
   reference?: string;
+  isInvoiced?: boolean;
+  invoiceNumber?: string;
+  clientSupplier?: string;
+  ruc?: string;
 }
 
 interface InvoiceData {
@@ -84,8 +88,8 @@ interface InvoiceData {
   total: number;
 }
 
-// Crear transacción con asiento contable
-export async function createTransaction(data: TransactionData) {
+// Crear transacción con asiento contable (función interna)
+async function createTransaction(data: TransactionData) {
   // 1. Insertar la transacción
   const { data: transaction, error: transactionError } = await supabase
     .from('transactions')
@@ -99,6 +103,7 @@ export async function createTransaction(data: TransactionData) {
       to_account: data.toAccount || null,
       description: data.description,
       reference: data.reference || null,
+      is_invoiced: data.isInvoiced || false,
     })
     .select()
     .single();
@@ -170,6 +175,135 @@ export async function createTransaction(data: TransactionData) {
   if (linesError) throw linesError;
 
   return { transaction, entry };
+}
+
+// Crear transacción con factura opcional
+export async function createTransactionWithInvoice(data: TransactionData) {
+  // Si no es facturada o es transferencia, crear solo la transacción
+  if (!data.isInvoiced || data.type === 'transfer') {
+    return createTransaction(data);
+  }
+
+  // Calcular IGV (18%)
+  const subtotal = data.amount / 1.18;
+  const igv = data.amount - subtotal;
+
+  // 1. Crear la factura
+  const invoiceType = data.type === 'income' ? 'sale' : 'purchase';
+  
+  const { data: invoice, error: invoiceError } = await supabase
+    .from('invoices')
+    .insert({
+      type: invoiceType,
+      date: data.date,
+      business_id: data.businessId,
+      client_supplier: data.clientSupplier || 'Sin nombre',
+      ruc: data.ruc || null,
+      invoice_number: data.invoiceNumber || '',
+      subtotal: Math.round(subtotal * 100) / 100,
+      igv: Math.round(igv * 100) / 100,
+      total: data.amount,
+    })
+    .select()
+    .single();
+
+  if (invoiceError) throw invoiceError;
+
+  // 2. Crear item de factura
+  const { error: itemError } = await supabase
+    .from('invoice_items')
+    .insert({
+      invoice_id: invoice.id,
+      description: data.description,
+      quantity: 1,
+      unit_price: subtotal,
+      total: subtotal,
+    });
+
+  if (itemError) throw itemError;
+
+  // 3. Crear la transacción vinculada a la factura
+  const { data: transaction, error: transactionError } = await supabase
+    .from('transactions')
+    .insert({
+      date: data.date,
+      type: data.type,
+      business_id: data.businessId,
+      category_id: data.categoryId || null,
+      amount: data.amount,
+      from_account: data.fromAccount || null,
+      to_account: data.toAccount || null,
+      description: data.description,
+      reference: data.invoiceNumber || data.reference || null,
+      is_invoiced: true,
+      invoice_id: invoice.id,
+    })
+    .select()
+    .single();
+
+  if (transactionError) throw transactionError;
+
+  // 4. Crear asiento contable para la factura
+  let entryDescription: string;
+  let lines: Array<{ account_code: string; account_name: string; debit: number; credit: number }>;
+
+  if (invoiceType === 'sale') {
+    entryDescription = `Factura venta ${data.invoiceNumber} - ${data.clientSupplier}`;
+    
+    const [cuentasCobrarName, ventasName, igvName] = await Promise.all([
+      getAccountName('1212'),
+      getAccountName('7011'),
+      getAccountName('4011'),
+    ]);
+
+    lines = [
+      { account_code: '1212', account_name: cuentasCobrarName, debit: data.amount, credit: 0 },
+      { account_code: '7011', account_name: ventasName, debit: 0, credit: Math.round(subtotal * 100) / 100 },
+      { account_code: '4011', account_name: igvName, debit: 0, credit: Math.round(igv * 100) / 100 },
+    ];
+  } else {
+    entryDescription = `Factura compra ${data.invoiceNumber} - ${data.clientSupplier}`;
+    
+    const [comprasName, igvCreditoName, cuentasPagarName] = await Promise.all([
+      getAccountName('6011'),
+      getAccountName('4011'),
+      getAccountName('4212'),
+    ]);
+
+    lines = [
+      { account_code: '6011', account_name: comprasName, debit: Math.round(subtotal * 100) / 100, credit: 0 },
+      { account_code: '4011', account_name: igvCreditoName, debit: Math.round(igv * 100) / 100, credit: 0 },
+      { account_code: '4212', account_name: cuentasPagarName, debit: 0, credit: data.amount },
+    ];
+  }
+
+  // 5. Crear asiento contable
+  const { data: entry, error: entryError } = await supabase
+    .from('accounting_entries')
+    .insert({
+      date: data.date,
+      business_id: data.businessId,
+      description: entryDescription,
+      transaction_id: transaction.id,
+    })
+    .select()
+    .single();
+
+  if (entryError) throw entryError;
+
+  // 6. Crear líneas del asiento
+  const linesToInsert = lines.map(line => ({
+    entry_id: entry.id,
+    ...line,
+  }));
+
+  const { error: linesError } = await supabase
+    .from('accounting_entry_lines')
+    .insert(linesToInsert);
+
+  if (linesError) throw linesError;
+
+  return { transaction, invoice, entry };
 }
 
 // Crear factura con asiento contable

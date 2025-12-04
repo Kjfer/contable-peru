@@ -7,12 +7,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useBusinesses } from '@/hooks/useBusinesses';
 import { useTransactionCategories } from '@/hooks/useTransactionCategories';
-import { createTransaction } from '@/lib/accountingService';
+import { createTransactionWithInvoice } from '@/lib/accountingService';
 import { ACCOUNT_TYPES, TransactionType, AccountType } from '@/types/accounting';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Receipt } from 'lucide-react';
 
 const transactionSchema = z.object({
   date: z.string().min(1, 'Fecha requerida'),
@@ -24,6 +25,27 @@ const transactionSchema = z.object({
   toAccount: z.string().optional(),
   description: z.string().min(1, 'Descripción requerida'),
   reference: z.string().optional(),
+  // Invoice fields
+  isInvoiced: z.boolean().default(false),
+  invoiceNumber: z.string().optional(),
+  clientSupplier: z.string().optional(),
+  ruc: z.string().optional(),
+}).refine((data) => {
+  if (data.isInvoiced && data.type !== 'transfer') {
+    return data.invoiceNumber && data.invoiceNumber.length > 0;
+  }
+  return true;
+}, {
+  message: 'Número de factura requerido',
+  path: ['invoiceNumber'],
+}).refine((data) => {
+  if (data.isInvoiced && data.type !== 'transfer') {
+    return data.clientSupplier && data.clientSupplier.length > 0;
+  }
+  return true;
+}, {
+  message: 'Cliente/Proveedor requerido',
+  path: ['clientSupplier'],
 });
 
 type TransactionFormData = z.infer<typeof transactionSchema>;
@@ -34,6 +56,7 @@ interface TransactionFormProps {
 
 export function TransactionForm({ onClose }: TransactionFormProps) {
   const [transactionType, setTransactionType] = useState<TransactionType>('income');
+  const [isInvoiced, setIsInvoiced] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const { data: businesses, isLoading: businessesLoading } = useBusinesses();
@@ -44,13 +67,14 @@ export function TransactionForm({ onClose }: TransactionFormProps) {
     defaultValues: {
       type: 'income',
       date: new Date().toISOString().split('T')[0],
+      isInvoiced: false,
     },
   });
 
   const onSubmit = async (data: TransactionFormData) => {
     setIsSubmitting(true);
     try {
-      await createTransaction({
+      await createTransactionWithInvoice({
         date: data.date!,
         type: data.type!,
         businessId: data.businessId!,
@@ -60,8 +84,16 @@ export function TransactionForm({ onClose }: TransactionFormProps) {
         toAccount: data.toAccount,
         description: data.description!,
         reference: data.reference,
+        isInvoiced: data.isInvoiced,
+        invoiceNumber: data.invoiceNumber,
+        clientSupplier: data.clientSupplier,
+        ruc: data.ruc,
       });
-      toast.success('Transacción registrada con asiento contable');
+      
+      const message = data.isInvoiced 
+        ? 'Transacción y factura registradas con asiento contable'
+        : 'Transacción registrada con asiento contable';
+      toast.success(message);
       onClose();
     } catch (error) {
       console.error('Error creating transaction:', error);
@@ -76,6 +108,8 @@ export function TransactionForm({ onClose }: TransactionFormProps) {
   ) || [];
 
   const isLoading = businessesLoading || categoriesLoading;
+  const showInvoiceOption = transactionType !== 'transfer';
+  const invoiceTypeLabel = transactionType === 'income' ? 'Factura de Venta' : 'Factura de Compra';
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -87,6 +121,10 @@ export function TransactionForm({ onClose }: TransactionFormProps) {
             onValueChange={(value: TransactionType) => {
               setTransactionType(value);
               setValue('type', value);
+              if (value === 'transfer') {
+                setIsInvoiced(false);
+                setValue('isInvoiced', false);
+              }
             }}
           >
             <SelectTrigger>
@@ -237,10 +275,53 @@ export function TransactionForm({ onClose }: TransactionFormProps) {
         {errors.description && <p className="mt-1 text-sm text-destructive">{errors.description.message}</p>}
       </div>
 
+      {/* Invoice Section */}
+      {showInvoiceOption && (
+        <div className="space-y-4 rounded-lg border border-border p-4">
+          <div className="flex items-center space-x-3">
+            <Checkbox
+              id="isInvoiced"
+              checked={isInvoiced}
+              onCheckedChange={(checked) => {
+                setIsInvoiced(checked as boolean);
+                setValue('isInvoiced', checked as boolean);
+              }}
+            />
+            <Label htmlFor="isInvoiced" className="flex items-center gap-2 cursor-pointer">
+              <Receipt className="h-4 w-4" />
+              Transacción Facturada ({invoiceTypeLabel})
+            </Label>
+          </div>
+
+          {isInvoiced && (
+            <div className="grid gap-4 md:grid-cols-3 pt-2">
+              <div>
+                <Label>Número de Factura *</Label>
+                <Input {...register('invoiceNumber')} placeholder="Ej: F001-00001" />
+                {errors.invoiceNumber && (
+                  <p className="mt-1 text-sm text-destructive">{errors.invoiceNumber.message}</p>
+                )}
+              </div>
+              <div>
+                <Label>{transactionType === 'income' ? 'Cliente *' : 'Proveedor *'}</Label>
+                <Input {...register('clientSupplier')} placeholder="Nombre del cliente/proveedor" />
+                {errors.clientSupplier && (
+                  <p className="mt-1 text-sm text-destructive">{errors.clientSupplier.message}</p>
+                )}
+              </div>
+              <div>
+                <Label>RUC (opcional)</Label>
+                <Input {...register('ruc')} placeholder="20123456789" maxLength={11} />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="flex gap-4">
         <Button type="submit" className="flex-1" disabled={isSubmitting}>
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Guardar Transacción
+          {isInvoiced ? 'Guardar Transacción y Factura' : 'Guardar Transacción'}
         </Button>
         <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
           Cancelar

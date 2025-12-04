@@ -268,6 +268,8 @@ export type Database = {
           description: string | null
           from_account: string | null
           id: string
+          invoice_id: string | null
+          is_invoiced: boolean
           reference: string | null
           to_account: string | null
           type: Database["public"]["Enums"]["transaction_type"]
@@ -281,6 +283,8 @@ export type Database = {
           description?: string | null
           from_account?: string | null
           id?: string
+          invoice_id?: string | null
+          is_invoiced?: boolean
           reference?: string | null
           to_account?: string | null
           type: Database["public"]["Enums"]["transaction_type"]
@@ -294,6 +298,8 @@ export type Database = {
           description?: string | null
           from_account?: string | null
           id?: string
+          invoice_id?: string | null
+          is_invoiced?: boolean
           reference?: string | null
           to_account?: string | null
           type?: Database["public"]["Enums"]["transaction_type"]
@@ -311,6 +317,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "transaction_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
         ]

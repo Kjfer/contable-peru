@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/calculations';
 import { useBusinesses } from '@/hooks/useBusinesses';
 import { useTransactionCategories } from '@/hooks/useTransactionCategories';
-import { ArrowUpRight, ArrowDownRight, ArrowLeftRight } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, ArrowLeftRight, Receipt } from 'lucide-react';
 
 interface TransactionListProps {
   transactions: Transaction[];
@@ -60,6 +60,7 @@ export function TransactionList({ transactions }: TransactionListProps) {
               <th className="px-6 py-3 text-left text-sm font-semibold">Descripción</th>
               <th className="px-6 py-3 text-left text-sm font-semibold">Cuentas</th>
               <th className="px-6 py-3 text-right text-sm font-semibold">Monto</th>
+              <th className="px-6 py-3 text-center text-sm font-semibold">Factura</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -106,6 +107,16 @@ export function TransactionList({ transactions }: TransactionListProps) {
                   >
                     {formatCurrency(transaction.amount)}
                   </span>
+                </td>
+                <td className="px-6 py-4 text-center">
+                  {transaction.isInvoiced ? (
+                    <Badge variant="secondary" className="gap-1">
+                      <Receipt className="h-3 w-3" />
+                      Sí
+                    </Badge>
+                  ) : (
+                    <span className="text-muted-foreground text-sm">No</span>
+                  )}
                 </td>
               </tr>
             ))}

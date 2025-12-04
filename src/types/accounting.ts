@@ -26,6 +26,8 @@ export interface Transaction {
   description: string;
   reference?: string;
   createdAt?: string;
+  isInvoiced?: boolean;
+  invoiceId?: string;
 }
 
 export interface Invoice {

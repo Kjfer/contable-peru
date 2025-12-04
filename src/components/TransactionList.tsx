@@ -2,8 +2,8 @@ import { Transaction } from '@/types/accounting';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/calculations';
-import { TRANSACTION_CATEGORIES } from '@/types/accounting';
-import { BUSINESSES } from '@/lib/mockData';
+import { useBusinesses } from '@/hooks/useBusinesses';
+import { useTransactionCategories } from '@/hooks/useTransactionCategories';
 import { ArrowUpRight, ArrowDownRight, ArrowLeftRight } from 'lucide-react';
 
 interface TransactionListProps {
@@ -11,6 +11,9 @@ interface TransactionListProps {
 }
 
 export function TransactionList({ transactions }: TransactionListProps) {
+  const { data: businesses } = useBusinesses();
+  const { data: categories } = useTransactionCategories();
+
   const getTransactionIcon = (type: string) => {
     switch (type) {
       case 'income':
@@ -37,11 +40,11 @@ export function TransactionList({ transactions }: TransactionListProps) {
 
   const getCategoryName = (categoryId?: number) => {
     if (!categoryId) return '-';
-    return TRANSACTION_CATEGORIES.find(c => c.id === categoryId)?.name || '-';
+    return categories?.find(c => c.id === categoryId)?.name || '-';
   };
 
   const getBusinessName = (businessId: string) => {
-    return BUSINESSES.find(b => b.id === businessId)?.name || businessId;
+    return businesses?.find(b => b.id === businessId)?.name || businessId;
   };
 
   return (

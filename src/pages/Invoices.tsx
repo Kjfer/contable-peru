@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -7,24 +7,52 @@ import { BusinessFilter } from '@/components/BusinessFilter';
 import { PeriodFilter } from '@/components/PeriodFilter';
 import { InvoiceForm } from '@/components/InvoiceForm';
 import { InvoiceList } from '@/components/InvoiceList';
-import { MOCK_INVOICES } from '@/lib/mockData';
+import { useInvoices } from '@/hooks/useInvoices';
 
 export default function Invoices() {
   const [selectedBusiness, setSelectedBusiness] = useState('all');
   const [selectedPeriod, setSelectedPeriod] = useState('current-month');
   const [showForm, setShowForm] = useState(false);
   const [invoiceType, setInvoiceType] = useState<'sale' | 'purchase'>('sale');
+  const [activeTab, setActiveTab] = useState('sales');
 
-  const filteredInvoices = MOCK_INVOICES.filter(
-    invoice =>
-      (selectedBusiness === 'all' || invoice.businessId === selectedBusiness) &&
-      invoice.type === invoiceType
-  );
+  const { data: salesInvoices, isLoading: loadingSales, refetch: refetchSales } = useInvoices({
+    businessId: selectedBusiness,
+    period: selectedPeriod,
+    type: 'sale',
+  });
+
+  const { data: purchaseInvoices, isLoading: loadingPurchases, refetch: refetchPurchases } = useInvoices({
+    businessId: selectedBusiness,
+    period: selectedPeriod,
+    type: 'purchase',
+  });
 
   const handleNewInvoice = (type: 'sale' | 'purchase') => {
     setInvoiceType(type);
     setShowForm(true);
   };
+
+  const handleFormClose = () => {
+    setShowForm(false);
+    refetchSales();
+    refetchPurchases();
+  };
+
+  const formatInvoices = (invoices: any[]) => invoices.map(inv => ({
+    id: inv.id,
+    date: inv.date,
+    invoiceNumber: inv.invoice_number,
+    businessId: inv.business_id,
+    type: inv.type as 'sale' | 'purchase',
+    clientSupplier: inv.client_supplier,
+    ruc: inv.ruc || '',
+    subtotal: Number(inv.subtotal),
+    igv: Number(inv.igv),
+    total: Number(inv.total),
+  }));
+
+  const isLoading = loadingSales || loadingPurchases;
 
   return (
     <div className="space-y-6">
@@ -47,11 +75,11 @@ export default function Invoices() {
               Nueva Factura de {invoiceType === 'sale' ? 'Venta' : 'Compra'}
             </DialogTitle>
           </DialogHeader>
-          <InvoiceForm type={invoiceType} onClose={() => setShowForm(false)} />
+          <InvoiceForm type={invoiceType} onClose={handleFormClose} />
         </DialogContent>
       </Dialog>
 
-      <Tabs defaultValue="sales" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <div className="flex items-center justify-between">
           <TabsList>
             <TabsTrigger value="sales" onClick={() => setInvoiceType('sale')}>
@@ -61,19 +89,27 @@ export default function Invoices() {
               Compras
             </TabsTrigger>
           </TabsList>
-          <Button onClick={() => handleNewInvoice(invoiceType)} className="gap-2">
+          <Button onClick={() => handleNewInvoice(activeTab === 'sales' ? 'sale' : 'purchase')} className="gap-2">
             <Plus className="h-4 w-4" />
             Nueva Factura
           </Button>
         </div>
 
-        <TabsContent value="sales">
-          <InvoiceList invoices={filteredInvoices.filter(i => i.type === 'sale')} />
-        </TabsContent>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <>
+            <TabsContent value="sales">
+              <InvoiceList invoices={formatInvoices(salesInvoices || [])} />
+            </TabsContent>
 
-        <TabsContent value="purchases">
-          <InvoiceList invoices={filteredInvoices.filter(i => i.type === 'purchase')} />
-        </TabsContent>
+            <TabsContent value="purchases">
+              <InvoiceList invoices={formatInvoices(purchaseInvoices || [])} />
+            </TabsContent>
+          </>
+        )}
       </Tabs>
     </div>
   );

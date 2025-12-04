@@ -2,15 +2,17 @@ import { Invoice } from '@/types/accounting';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/calculations';
-import { BUSINESSES } from '@/lib/mockData';
+import { useBusinesses } from '@/hooks/useBusinesses';
 
 interface InvoiceListProps {
   invoices: Invoice[];
 }
 
 export function InvoiceList({ invoices }: InvoiceListProps) {
+  const { data: businesses } = useBusinesses();
+
   const getBusinessName = (businessId: string) => {
-    return BUSINESSES.find(b => b.id === businessId)?.name || businessId;
+    return businesses?.find(b => b.id === businessId)?.name || businessId;
   };
 
   return (

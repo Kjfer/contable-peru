@@ -1,152 +1,27 @@
 import { useState } from 'react';
+import { Loader2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { BusinessFilter } from '@/components/BusinessFilter';
 import { PeriodFilter } from '@/components/PeriodFilter';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useGeneralLedger, useChartOfAccounts } from '@/hooks/useGeneralLedger';
 import { formatCurrency } from '@/lib/calculations';
-import { BookOpen } from 'lucide-react';
-
-interface LedgerEntry {
-  date: string;
-  transactionId: string;
-  description: string;
-  debit: number;
-  credit: number;
-  balance: number;
-}
-
-interface AccountLedger {
-  accountCode: string;
-  accountName: string;
-  entries: LedgerEntry[];
-}
-
-// Mock data para libro mayor
-const MOCK_LEDGER: AccountLedger[] = [
-  {
-    accountCode: '1041',
-    accountName: 'Cuentas por Cobrar',
-    entries: [
-      {
-        date: '2025-11-01',
-        transactionId: 'SALDO-INICIAL',
-        description: 'Saldo inicial del período',
-        debit: 10000,
-        credit: 0,
-        balance: 10000,
-      },
-      {
-        date: '2025-11-15',
-        transactionId: 'TRX-001',
-        description: 'Venta de productos',
-        debit: 5900,
-        credit: 0,
-        balance: 15900,
-      },
-      {
-        date: '2025-11-20',
-        transactionId: 'TRX-005',
-        description: 'Cobro de factura',
-        debit: 0,
-        credit: 5900,
-        balance: 10000,
-      },
-    ],
-  },
-  {
-    accountCode: '7011',
-    accountName: 'Ventas',
-    entries: [
-      {
-        date: '2025-11-01',
-        transactionId: 'SALDO-INICIAL',
-        description: 'Saldo inicial del período',
-        debit: 0,
-        credit: 0,
-        balance: 0,
-      },
-      {
-        date: '2025-11-15',
-        transactionId: 'TRX-001',
-        description: 'Venta de productos',
-        debit: 0,
-        credit: 5000,
-        balance: 5000,
-      },
-      {
-        date: '2025-11-22',
-        transactionId: 'TRX-008',
-        description: 'Venta de servicios',
-        debit: 0,
-        credit: 3000,
-        balance: 8000,
-      },
-    ],
-  },
-  {
-    accountCode: '6011',
-    accountName: 'Compras de Mercadería',
-    entries: [
-      {
-        date: '2025-11-01',
-        transactionId: 'SALDO-INICIAL',
-        description: 'Saldo inicial del período',
-        debit: 0,
-        credit: 0,
-        balance: 0,
-      },
-      {
-        date: '2025-11-10',
-        transactionId: 'TRX-003',
-        description: 'Compra de mercadería',
-        debit: 3000,
-        credit: 0,
-        balance: 3000,
-      },
-    ],
-  },
-  {
-    accountCode: '4011',
-    accountName: 'IGV por Pagar / Cobrar',
-    entries: [
-      {
-        date: '2025-11-01',
-        transactionId: 'SALDO-INICIAL',
-        description: 'Saldo inicial del período',
-        debit: 0,
-        credit: 0,
-        balance: 0,
-      },
-      {
-        date: '2025-11-10',
-        transactionId: 'TRX-003',
-        description: 'IGV Compras',
-        debit: 540,
-        credit: 0,
-        balance: 540,
-      },
-      {
-        date: '2025-11-15',
-        transactionId: 'TRX-001',
-        description: 'IGV Ventas',
-        debit: 0,
-        credit: 900,
-        balance: -360,
-      },
-    ],
-  },
-];
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 export default function GeneralLedger() {
   const [selectedBusiness, setSelectedBusiness] = useState('all');
   const [selectedPeriod, setSelectedPeriod] = useState('current-month');
-  const [selectedAccount, setSelectedAccount] = useState(MOCK_LEDGER[0].accountCode);
+  const [selectedAccount, setSelectedAccount] = useState('all');
 
-  const currentAccount = MOCK_LEDGER.find(acc => acc.accountCode === selectedAccount) || MOCK_LEDGER[0];
+  const { data: accounts, isLoading, error } = useGeneralLedger({
+    businessId: selectedBusiness,
+    period: selectedPeriod,
+    accountCode: selectedAccount,
+  });
 
-  const totalDebit = currentAccount.entries.reduce((sum, e) => sum + e.debit, 0);
-  const totalCredit = currentAccount.entries.reduce((sum, e) => sum + e.credit, 0);
-  const finalBalance = currentAccount.entries[currentAccount.entries.length - 1]?.balance || 0;
+  const { data: chartOfAccounts } = useChartOfAccounts();
 
   return (
     <div className="space-y-6">
@@ -162,107 +37,98 @@ export default function GeneralLedger() {
         <BusinessFilter value={selectedBusiness} onChange={setSelectedBusiness} />
         <Select value={selectedAccount} onValueChange={setSelectedAccount}>
           <SelectTrigger className="w-[300px]">
-            <BookOpen className="mr-2 h-4 w-4" />
             <SelectValue placeholder="Seleccionar cuenta" />
           </SelectTrigger>
           <SelectContent>
-            {MOCK_LEDGER.map((account) => (
-              <SelectItem key={account.accountCode} value={account.accountCode}>
-                {account.accountCode} - {account.accountName}
+            <SelectItem value="all">Todas las cuentas</SelectItem>
+            {(chartOfAccounts || []).map((account) => (
+              <SelectItem key={account.code} value={account.code}>
+                {account.code} - {account.name}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
 
-      <Card className="overflow-hidden">
-        <div className="border-b border-border bg-primary/5 px-6 py-4">
-          <h3 className="text-lg font-semibold">
-            {currentAccount.accountCode} - {currentAccount.accountName}
-          </h3>
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="border-b border-border bg-muted/30">
-              <tr>
-                <th className="px-6 py-3 text-left text-sm font-semibold">Fecha</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold">Transacción</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold">Descripción</th>
-                <th className="px-6 py-3 text-right text-sm font-semibold">Debe</th>
-                <th className="px-6 py-3 text-right text-sm font-semibold">Haber</th>
-                <th className="px-6 py-3 text-right text-sm font-semibold">Saldo</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {currentAccount.entries.map((entry, idx) => (
-                <tr key={idx} className="hover:bg-muted/20 transition-colors">
-                  <td className="px-6 py-4 text-sm">
-                    {new Date(entry.date).toLocaleDateString('es-PE')}
-                  </td>
-                  <td className="px-6 py-4 text-sm font-mono">{entry.transactionId}</td>
-                  <td className="px-6 py-4 text-sm">{entry.description}</td>
-                  <td className="px-6 py-4 text-right">
-                    {entry.debit > 0 ? (
-                      <span className="financial-number font-medium">
-                        {formatCurrency(entry.debit)}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    {entry.credit > 0 ? (
-                      <span className="financial-number font-medium">
-                        {formatCurrency(entry.credit)}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <span
-                      className={`financial-number font-semibold ${
-                        entry.balance >= 0 ? 'text-success' : 'text-destructive'
-                      }`}
-                    >
-                      {formatCurrency(Math.abs(entry.balance))}
-                      {entry.balance < 0 && ' CR'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot className="border-t-2 border-border bg-secondary/50">
-              <tr>
-                <td colSpan={3} className="px-6 py-4 text-sm font-bold">
-                  TOTALES DEL PERÍODO
-                </td>
-                <td className="px-6 py-4 text-right">
-                  <span className="financial-number text-sm font-bold">
-                    {formatCurrency(totalDebit)}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-right">
-                  <span className="financial-number text-sm font-bold">
-                    {formatCurrency(totalCredit)}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-right">
-                  <span
-                    className={`financial-number text-sm font-bold ${
-                      finalBalance >= 0 ? 'text-success' : 'text-destructive'
-                    }`}
-                  >
-                    {formatCurrency(Math.abs(finalBalance))}
-                    {finalBalance < 0 && ' CR'}
-                  </span>
-                </td>
-              </tr>
-            </tfoot>
-          </table>
+      ) : error ? (
+        <div className="text-center py-12 text-destructive">
+          Error al cargar el libro mayor
         </div>
-      </Card>
+      ) : !accounts || accounts.length === 0 ? (
+        <Card className="p-12 text-center">
+          <p className="text-muted-foreground">No hay movimientos para el período seleccionado</p>
+        </Card>
+      ) : (
+        <div className="space-y-6">
+          {accounts.map((account) => (
+            <Card key={account.code} className="overflow-hidden">
+              <div className="bg-muted/50 px-6 py-4 border-b">
+                <h3 className="text-lg font-semibold">
+                  {account.code} - {account.name}
+                </h3>
+              </div>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[120px]">Fecha</TableHead>
+                      <TableHead className="w-[150px]">Asiento</TableHead>
+                      <TableHead>Descripción</TableHead>
+                      <TableHead className="text-right w-[130px]">Debe</TableHead>
+                      <TableHead className="text-right w-[130px]">Haber</TableHead>
+                      <TableHead className="text-right w-[130px]">Saldo</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {account.entries.map((entry, idx) => (
+                      <TableRow key={`${entry.entryId}-${idx}`}>
+                        <TableCell>
+                          {format(new Date(entry.date), 'dd/MM/yyyy', { locale: es })}
+                        </TableCell>
+                        <TableCell className="font-mono text-sm text-muted-foreground">
+                          {entry.entryId.slice(0, 8)}...
+                        </TableCell>
+                        <TableCell>{entry.description}</TableCell>
+                        <TableCell className="text-right">
+                          {entry.debit > 0 ? formatCurrency(entry.debit) : '-'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {entry.credit > 0 ? formatCurrency(entry.credit) : '-'}
+                        </TableCell>
+                        <TableCell className={`text-right font-medium ${entry.balance < 0 ? 'text-destructive' : ''}`}>
+                          {formatCurrency(Math.abs(entry.balance))}
+                          {entry.balance < 0 ? ' (C)' : ' (D)'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                  <TableFooter>
+                    <TableRow>
+                      <TableCell colSpan={3} className="font-semibold">
+                        Totales del período
+                      </TableCell>
+                      <TableCell className="text-right font-semibold">
+                        {formatCurrency(account.totalDebit)}
+                      </TableCell>
+                      <TableCell className="text-right font-semibold">
+                        {formatCurrency(account.totalCredit)}
+                      </TableCell>
+                      <TableCell className={`text-right font-semibold ${account.finalBalance < 0 ? 'text-destructive' : ''}`}>
+                        {formatCurrency(Math.abs(account.finalBalance))}
+                        {account.finalBalance < 0 ? ' (C)' : ' (D)'}
+                      </TableCell>
+                    </TableRow>
+                  </TableFooter>
+                </Table>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

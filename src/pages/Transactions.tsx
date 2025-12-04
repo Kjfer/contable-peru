@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Upload } from 'lucide-react';
+import { Plus, Upload, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { BusinessFilter } from '@/components/BusinessFilter';
@@ -7,7 +7,8 @@ import { PeriodFilter } from '@/components/PeriodFilter';
 import { TransactionForm } from '@/components/TransactionForm';
 import { TransactionList } from '@/components/TransactionList';
 import { ImportDialog } from '@/components/ImportDialog';
-import { MOCK_TRANSACTIONS } from '@/lib/mockData';
+import { useTransactions } from '@/hooks/useTransactions';
+import { useBusinesses } from '@/hooks/useBusinesses';
 
 export default function Transactions() {
   const [selectedBusiness, setSelectedBusiness] = useState('all');
@@ -15,9 +16,30 @@ export default function Transactions() {
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
 
-  const filteredTransactions = selectedBusiness === 'all'
-    ? MOCK_TRANSACTIONS
-    : MOCK_TRANSACTIONS.filter(t => t.businessId === selectedBusiness);
+  const { data: transactions, isLoading, error, refetch } = useTransactions({
+    businessId: selectedBusiness,
+    period: selectedPeriod,
+  });
+
+  const { data: businesses } = useBusinesses();
+
+  const formattedTransactions = (transactions || []).map(t => ({
+    id: t.id,
+    date: t.date,
+    type: t.type as 'income' | 'expense' | 'transfer',
+    businessId: t.business_id,
+    categoryId: t.category_id || 0,
+    description: t.description || '',
+    amount: Number(t.amount),
+    fromAccount: t.from_account || undefined,
+    toAccount: t.to_account || undefined,
+    reference: t.reference || undefined,
+  }));
+
+  const handleFormClose = () => {
+    setShowForm(false);
+    refetch();
+  };
 
   return (
     <div className="space-y-6">
@@ -48,13 +70,23 @@ export default function Transactions() {
           <DialogHeader>
             <DialogTitle>Nueva Transacción</DialogTitle>
           </DialogHeader>
-          <TransactionForm onClose={() => setShowForm(false)} />
+          <TransactionForm onClose={handleFormClose} />
         </DialogContent>
       </Dialog>
 
       <ImportDialog open={showImport} onOpenChange={setShowImport} />
 
-      <TransactionList transactions={filteredTransactions} />
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : error ? (
+        <div className="text-center py-12 text-destructive">
+          Error al cargar transacciones
+        </div>
+      ) : (
+        <TransactionList transactions={formattedTransactions} />
+      )}
     </div>
   );
 }

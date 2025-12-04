@@ -21,11 +21,11 @@ export interface Transaction {
   businessId: string;
   categoryId?: number;
   amount: number;
-  fromAccount?: AccountType;
-  toAccount?: AccountType;
+  fromAccount?: AccountType | string;
+  toAccount?: AccountType | string;
   description: string;
   reference?: string;
-  createdAt: string;
+  createdAt?: string;
 }
 
 export interface Invoice {
@@ -38,9 +38,9 @@ export interface Invoice {
   subtotal: number;
   igv: number;
   total: number;
-  items: InvoiceItem[];
+  items?: InvoiceItem[];
   invoiceNumber: string;
-  createdAt: string;
+  createdAt?: string;
 }
 
 export interface InvoiceItem {

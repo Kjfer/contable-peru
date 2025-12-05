@@ -3,6 +3,16 @@ import { startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, subYears, 
 export function getDateRangeFromPeriod(period: string): { startDate: string; endDate: string } {
   const now = new Date();
   
+  // Check if it's a specific month format (YYYY-MM)
+  if (period && period.match(/^\d{4}-\d{2}$/)) {
+    const [year, month] = period.split('-').map(Number);
+    const date = new Date(year, month - 1, 1);
+    return {
+      startDate: format(startOfMonth(date), 'yyyy-MM-dd'),
+      endDate: format(endOfMonth(date), 'yyyy-MM-dd'),
+    };
+  }
+  
   switch (period) {
     case 'current-month':
       return {

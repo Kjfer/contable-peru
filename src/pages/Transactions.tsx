@@ -7,21 +7,23 @@ import { PeriodFilter } from '@/components/PeriodFilter';
 import { TransactionForm } from '@/components/TransactionForm';
 import { TransactionList } from '@/components/TransactionList';
 import { ImportDialog } from '@/components/ImportDialog';
-import { useTransactions } from '@/hooks/useTransactions';
-import { useBusinesses } from '@/hooks/useBusinesses';
+import { useTransactions, useDeleteTransaction } from '@/hooks/useTransactions';
+import { Transaction } from '@/types/accounting';
+import { toast } from 'sonner';
 
 export default function Transactions() {
   const [selectedBusiness, setSelectedBusiness] = useState('all');
   const [selectedPeriod, setSelectedPeriod] = useState('current-month');
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [editTransaction, setEditTransaction] = useState<Transaction | undefined>();
 
   const { data: transactions, isLoading, error, refetch } = useTransactions({
     businessId: selectedBusiness,
     period: selectedPeriod,
   });
 
-  const { data: businesses } = useBusinesses();
+  const deleteTransaction = useDeleteTransaction();
 
   const formattedTransactions = (transactions || []).map(t => ({
     id: t.id,
@@ -40,7 +42,23 @@ export default function Transactions() {
 
   const handleFormClose = () => {
     setShowForm(false);
+    setEditTransaction(undefined);
     refetch();
+  };
+
+  const handleEdit = (transaction: Transaction) => {
+    setEditTransaction(transaction);
+    setShowForm(true);
+  };
+
+  const handleDelete = async (transactionId: string) => {
+    try {
+      await deleteTransaction.mutateAsync(transactionId);
+      toast.success('Transacción eliminada');
+    } catch (error) {
+      console.error('Error deleting transaction:', error);
+      toast.error('Error al eliminar la transacción');
+    }
   };
 
   return (
@@ -67,12 +85,17 @@ export default function Transactions() {
         <BusinessFilter value={selectedBusiness} onChange={setSelectedBusiness} />
       </div>
 
-      <Dialog open={showForm} onOpenChange={setShowForm}>
+      <Dialog open={showForm} onOpenChange={(open) => {
+        if (!open) handleFormClose();
+        else setShowForm(true);
+      }}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Nueva Transacción</DialogTitle>
+            <DialogTitle>
+              {editTransaction ? 'Editar Transacción' : 'Nueva Transacción'}
+            </DialogTitle>
           </DialogHeader>
-          <TransactionForm onClose={handleFormClose} />
+          <TransactionForm onClose={handleFormClose} editTransaction={editTransaction} />
         </DialogContent>
       </Dialog>
 
@@ -87,7 +110,11 @@ export default function Transactions() {
           Error al cargar transacciones
         </div>
       ) : (
-        <TransactionList transactions={formattedTransactions} />
+        <TransactionList 
+          transactions={formattedTransactions} 
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
       )}
     </div>
   );

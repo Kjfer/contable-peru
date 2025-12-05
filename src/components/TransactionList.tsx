@@ -1,16 +1,30 @@
 import { Transaction } from '@/types/accounting';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/calculations';
 import { useBusinesses } from '@/hooks/useBusinesses';
 import { useTransactionCategories } from '@/hooks/useTransactionCategories';
-import { ArrowUpRight, ArrowDownRight, ArrowLeftRight, Receipt } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, ArrowLeftRight, Receipt, Pencil, Trash2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface TransactionListProps {
   transactions: Transaction[];
+  onEdit?: (transaction: Transaction) => void;
+  onDelete?: (transactionId: string) => void;
 }
 
-export function TransactionList({ transactions }: TransactionListProps) {
+export function TransactionList({ transactions, onEdit, onDelete }: TransactionListProps) {
   const { data: businesses } = useBusinesses();
   const { data: categories } = useTransactionCategories();
 
@@ -61,6 +75,7 @@ export function TransactionList({ transactions }: TransactionListProps) {
               <th className="px-6 py-3 text-left text-sm font-semibold">Cuentas</th>
               <th className="px-6 py-3 text-right text-sm font-semibold">Monto</th>
               <th className="px-6 py-3 text-center text-sm font-semibold">Factura</th>
+              <th className="px-6 py-3 text-center text-sm font-semibold">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -117,6 +132,47 @@ export function TransactionList({ transactions }: TransactionListProps) {
                   ) : (
                     <span className="text-muted-foreground text-sm">No</span>
                   )}
+                </td>
+                <td className="px-6 py-4">
+                  <div className="flex items-center justify-center gap-2">
+                    {!transaction.isInvoiced && onEdit && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onEdit(transaction)}
+                        className="h-8 w-8"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {onDelete && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>¿Eliminar transacción?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Esta acción no se puede deshacer. Se eliminará la transacción
+                              {transaction.isInvoiced && ', la factura asociada'} y los asientos contables relacionados.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => onDelete(transaction.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Eliminar
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

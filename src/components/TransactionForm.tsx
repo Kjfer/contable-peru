@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -10,8 +10,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useBusinesses } from '@/hooks/useBusinesses';
 import { useTransactionCategories } from '@/hooks/useTransactionCategories';
+import { useUpdateTransaction } from '@/hooks/useTransactions';
 import { createTransactionWithInvoice } from '@/lib/accountingService';
-import { ACCOUNT_TYPES, TransactionType, AccountType } from '@/types/accounting';
+import { ACCOUNT_TYPES, TransactionType, AccountType, Transaction } from '@/types/accounting';
 import { toast } from 'sonner';
 import { Loader2, Receipt } from 'lucide-react';
 
@@ -25,7 +26,6 @@ const transactionSchema = z.object({
   toAccount: z.string().optional(),
   description: z.string().min(1, 'Descripción requerida'),
   reference: z.string().optional(),
-  // Invoice fields
   isInvoiced: z.boolean().default(false),
   invoiceNumber: z.string().optional(),
   clientSupplier: z.string().optional(),
@@ -52,52 +52,95 @@ type TransactionFormData = z.infer<typeof transactionSchema>;
 
 interface TransactionFormProps {
   onClose: () => void;
+  editTransaction?: Transaction;
 }
 
-export function TransactionForm({ onClose }: TransactionFormProps) {
-  const [transactionType, setTransactionType] = useState<TransactionType>('income');
+export function TransactionForm({ onClose, editTransaction }: TransactionFormProps) {
+  const isEditing = !!editTransaction;
+  const [transactionType, setTransactionType] = useState<TransactionType>(
+    editTransaction?.type || 'income'
+  );
   const [isInvoiced, setIsInvoiced] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const { data: businesses, isLoading: businessesLoading } = useBusinesses();
   const { data: categories, isLoading: categoriesLoading } = useTransactionCategories();
+  const updateTransaction = useUpdateTransaction();
   
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm<TransactionFormData>({
+  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<TransactionFormData>({
     resolver: zodResolver(transactionSchema),
     defaultValues: {
-      type: 'income',
-      date: new Date().toISOString().split('T')[0],
+      type: editTransaction?.type || 'income',
+      date: editTransaction?.date || new Date().toISOString().split('T')[0],
+      businessId: editTransaction?.businessId || '',
+      categoryId: editTransaction?.categoryId || undefined,
+      amount: editTransaction?.amount || undefined,
+      fromAccount: editTransaction?.fromAccount || '',
+      toAccount: editTransaction?.toAccount || '',
+      description: editTransaction?.description || '',
+      reference: editTransaction?.reference || '',
       isInvoiced: false,
     },
   });
 
+  useEffect(() => {
+    if (editTransaction) {
+      setValue('businessId', editTransaction.businessId);
+      if (editTransaction.categoryId) {
+        setValue('categoryId', editTransaction.categoryId);
+      }
+      if (editTransaction.fromAccount) {
+        setValue('fromAccount', editTransaction.fromAccount);
+      }
+      if (editTransaction.toAccount) {
+        setValue('toAccount', editTransaction.toAccount);
+      }
+    }
+  }, [editTransaction, setValue]);
+
   const onSubmit = async (data: TransactionFormData) => {
     setIsSubmitting(true);
     try {
-      await createTransactionWithInvoice({
-        date: data.date!,
-        type: data.type!,
-        businessId: data.businessId!,
-        categoryId: data.categoryId,
-        amount: data.amount!,
-        fromAccount: data.fromAccount,
-        toAccount: data.toAccount,
-        description: data.description!,
-        reference: data.reference,
-        isInvoiced: data.isInvoiced,
-        invoiceNumber: data.invoiceNumber,
-        clientSupplier: data.clientSupplier,
-        ruc: data.ruc,
-      });
-      
-      const message = data.isInvoiced 
-        ? 'Transacción y factura registradas con asiento contable'
-        : 'Transacción registrada con asiento contable';
-      toast.success(message);
+      if (isEditing && editTransaction) {
+        await updateTransaction.mutateAsync({
+          id: editTransaction.id,
+          date: data.date,
+          type: data.type,
+          businessId: data.businessId,
+          categoryId: data.categoryId,
+          amount: data.amount,
+          fromAccount: data.fromAccount,
+          toAccount: data.toAccount,
+          description: data.description,
+          reference: data.reference,
+        });
+        toast.success('Transacción actualizada');
+      } else {
+        await createTransactionWithInvoice({
+          date: data.date,
+          type: data.type,
+          businessId: data.businessId,
+          categoryId: data.categoryId,
+          amount: data.amount,
+          fromAccount: data.fromAccount,
+          toAccount: data.toAccount,
+          description: data.description,
+          reference: data.reference,
+          isInvoiced: data.isInvoiced,
+          invoiceNumber: data.invoiceNumber,
+          clientSupplier: data.clientSupplier,
+          ruc: data.ruc,
+        });
+        
+        const message = data.isInvoiced 
+          ? 'Transacción y factura registradas con asiento contable'
+          : 'Transacción registrada con asiento contable';
+        toast.success(message);
+      }
       onClose();
     } catch (error) {
-      console.error('Error creating transaction:', error);
-      toast.error('Error al registrar la transacción');
+      console.error('Error saving transaction:', error);
+      toast.error(isEditing ? 'Error al actualizar la transacción' : 'Error al registrar la transacción');
     } finally {
       setIsSubmitting(false);
     }
@@ -108,7 +151,7 @@ export function TransactionForm({ onClose }: TransactionFormProps) {
   ) || [];
 
   const isLoading = businessesLoading || categoriesLoading;
-  const showInvoiceOption = transactionType !== 'transfer';
+  const showInvoiceOption = !isEditing && transactionType !== 'transfer';
   const invoiceTypeLabel = transactionType === 'income' ? 'Factura de Venta' : 'Factura de Compra';
 
   return (
@@ -126,6 +169,7 @@ export function TransactionForm({ onClose }: TransactionFormProps) {
                 setValue('isInvoiced', false);
               }
             }}
+            disabled={isEditing}
           >
             <SelectTrigger>
               <SelectValue />
@@ -146,7 +190,11 @@ export function TransactionForm({ onClose }: TransactionFormProps) {
 
         <div>
           <Label>Negocio</Label>
-          <Select onValueChange={(value) => setValue('businessId', value)} disabled={isLoading}>
+          <Select 
+            value={watch('businessId')} 
+            onValueChange={(value) => setValue('businessId', value)} 
+            disabled={isLoading}
+          >
             <SelectTrigger>
               <SelectValue placeholder={isLoading ? 'Cargando...' : 'Seleccionar'} />
             </SelectTrigger>
@@ -166,7 +214,11 @@ export function TransactionForm({ onClose }: TransactionFormProps) {
         {transactionType !== 'transfer' && (
           <div>
             <Label>Categoría</Label>
-            <Select onValueChange={(value) => setValue('categoryId', parseInt(value))} disabled={isLoading}>
+            <Select 
+              value={watch('categoryId')?.toString()} 
+              onValueChange={(value) => setValue('categoryId', parseInt(value))} 
+              disabled={isLoading}
+            >
               <SelectTrigger>
                 <SelectValue placeholder={isLoading ? 'Cargando...' : 'Seleccionar categoría'} />
               </SelectTrigger>
@@ -184,7 +236,10 @@ export function TransactionForm({ onClose }: TransactionFormProps) {
         {transactionType === 'expense' && (
           <div>
             <Label>Cuenta de Egreso</Label>
-            <Select onValueChange={(value) => setValue('fromAccount', value as AccountType)}>
+            <Select 
+              value={watch('fromAccount')} 
+              onValueChange={(value) => setValue('fromAccount', value as AccountType)}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Seleccionar cuenta" />
               </SelectTrigger>
@@ -202,7 +257,10 @@ export function TransactionForm({ onClose }: TransactionFormProps) {
         {transactionType === 'income' && (
           <div>
             <Label>Cuenta de Ingreso</Label>
-            <Select onValueChange={(value) => setValue('toAccount', value as AccountType)}>
+            <Select 
+              value={watch('toAccount')} 
+              onValueChange={(value) => setValue('toAccount', value as AccountType)}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Seleccionar cuenta" />
               </SelectTrigger>
@@ -222,7 +280,10 @@ export function TransactionForm({ onClose }: TransactionFormProps) {
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <Label>Desde Cuenta</Label>
-            <Select onValueChange={(value) => setValue('fromAccount', value as AccountType)}>
+            <Select 
+              value={watch('fromAccount')} 
+              onValueChange={(value) => setValue('fromAccount', value as AccountType)}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Seleccionar" />
               </SelectTrigger>
@@ -237,7 +298,10 @@ export function TransactionForm({ onClose }: TransactionFormProps) {
           </div>
           <div>
             <Label>Hacia Cuenta</Label>
-            <Select onValueChange={(value) => setValue('toAccount', value as AccountType)}>
+            <Select 
+              value={watch('toAccount')} 
+              onValueChange={(value) => setValue('toAccount', value as AccountType)}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Seleccionar" />
               </SelectTrigger>
@@ -275,7 +339,6 @@ export function TransactionForm({ onClose }: TransactionFormProps) {
         {errors.description && <p className="mt-1 text-sm text-destructive">{errors.description.message}</p>}
       </div>
 
-      {/* Invoice Section */}
       {showInvoiceOption && (
         <div className="space-y-4 rounded-lg border border-border p-4">
           <div className="flex items-center space-x-3">
@@ -321,7 +384,12 @@ export function TransactionForm({ onClose }: TransactionFormProps) {
       <div className="flex gap-4">
         <Button type="submit" className="flex-1" disabled={isSubmitting}>
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {isInvoiced ? 'Guardar Transacción y Factura' : 'Guardar Transacción'}
+          {isEditing 
+            ? 'Actualizar Transacción' 
+            : isInvoiced 
+              ? 'Guardar Transacción y Factura' 
+              : 'Guardar Transacción'
+          }
         </Button>
         <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
           Cancelar

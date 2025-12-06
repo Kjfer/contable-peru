@@ -6,24 +6,72 @@ import { IncomeStatement } from '@/components/IncomeStatement';
 import { BalanceSheet } from '@/components/BalanceSheet';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { useIncomeStatementData } from '@/hooks/useIncomeStatementData';
+import { useBalanceSheetData } from '@/hooks/useBalanceSheetData';
+import { useBusinesses } from '@/hooks/useBusinesses';
+import { exportIncomeStatementToPDF, exportBalanceSheetToPDF } from '@/lib/pdfExport';
 
 export default function Reports() {
   const [selectedBusiness, setSelectedBusiness] = useState('all');
   const [selectedPeriod, setSelectedPeriod] = useState('current-month');
 
+  const { data: businesses } = useBusinesses();
+  const incomeData = useIncomeStatementData(selectedBusiness, selectedPeriod);
+  const balanceData = useBalanceSheetData(selectedBusiness, selectedPeriod);
+
+  const getBusinessName = () => {
+    if (selectedBusiness === 'all') return 'Todos los Negocios';
+    return businesses?.find(b => b.id === selectedBusiness)?.name || 'Negocio';
+  };
+
+  const getPeriodLabel = () => {
+    if (selectedPeriod === 'current-month') return 'Mes Actual';
+    if (selectedPeriod === 'last-month') return 'Mes Anterior';
+    if (selectedPeriod === 'current-year') return 'Ano Actual';
+    return selectedPeriod;
+  };
+
   const handleExportIncomeStatement = () => {
-    toast.success('Exportando Estado de Resultados a PDF');
-    // Aquí iría la lógica de exportación a PDF
+    if (incomeData.loading) {
+      toast.error('Espere a que se carguen los datos');
+      return;
+    }
+
+    exportIncomeStatementToPDF({
+      incomeAccounts: incomeData.incomeAccounts,
+      expenseAccounts: incomeData.expenseAccounts,
+      totalIncome: incomeData.totalIncome,
+      totalExpenses: incomeData.totalExpenses,
+      netIncome: incomeData.netIncome,
+      periodLabel: getPeriodLabel(),
+      businessName: getBusinessName(),
+    });
+
+    toast.success('Estado de Resultados exportado a PDF');
   };
 
   const handleExportBalanceSheet = () => {
-    toast.success('Exportando Balance General a PDF');
-    // Aquí iría la lógica de exportación a PDF
+    if (balanceData.loading) {
+      toast.error('Espere a que se carguen los datos');
+      return;
+    }
+
+    exportBalanceSheetToPDF({
+      assetAccounts: balanceData.assetAccounts,
+      liabilityAccounts: balanceData.liabilityAccounts,
+      equityAccounts: balanceData.equityAccounts,
+      totalAssets: balanceData.totalAssets,
+      totalLiabilities: balanceData.totalLiabilities,
+      totalEquity: balanceData.totalEquity,
+      periodLabel: getPeriodLabel(),
+      businessName: getBusinessName(),
+    });
+
+    toast.success('Balance General exportado a PDF');
   };
 
   const handleExportIGV = () => {
-    toast.success('Exportando Declaración de IGV a PDF');
-    // Aquí iría la lógica de exportación a PDF
+    toast.info('Funcionalidad de exportacion de IGV en desarrollo');
   };
 
   return (
@@ -42,7 +90,7 @@ export default function Reports() {
         </div>
         <Button onClick={handleExportIGV} className="gap-2">
           <Download className="h-4 w-4" />
-          Exportar Declaración IGV
+          Exportar Declaracion IGV
         </Button>
       </div>
 
@@ -51,7 +99,12 @@ export default function Reports() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold text-foreground">Estado de Resultados</h2>
-            <Button onClick={handleExportIncomeStatement} variant="outline" className="gap-2">
+            <Button 
+              onClick={handleExportIncomeStatement} 
+              variant="outline" 
+              className="gap-2"
+              disabled={incomeData.loading}
+            >
               <Download className="h-4 w-4" />
               Exportar PDF
             </Button>
@@ -63,7 +116,12 @@ export default function Reports() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-bold text-foreground">Balance General</h2>
-            <Button onClick={handleExportBalanceSheet} variant="outline" className="gap-2">
+            <Button 
+              onClick={handleExportBalanceSheet} 
+              variant="outline" 
+              className="gap-2"
+              disabled={balanceData.loading}
+            >
               <Download className="h-4 w-4" />
               Exportar PDF
             </Button>

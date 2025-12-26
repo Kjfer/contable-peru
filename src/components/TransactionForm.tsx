@@ -10,9 +10,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useBusinesses } from '@/hooks/useBusinesses';
 import { useTransactionCategories } from '@/hooks/useTransactionCategories';
+import { usePaymentAccounts } from '@/hooks/usePaymentAccounts';
 import { useUpdateTransaction } from '@/hooks/useTransactions';
 import { createTransactionWithInvoice } from '@/lib/accountingService';
-import { ACCOUNT_TYPES, TransactionType, AccountType, Transaction } from '@/types/accounting';
+import { TransactionType, Transaction } from '@/types/accounting';
 import { toast } from 'sonner';
 import { Loader2, Receipt } from 'lucide-react';
 
@@ -65,6 +66,7 @@ export function TransactionForm({ onClose, editTransaction }: TransactionFormPro
   
   const { data: businesses, isLoading: businessesLoading } = useBusinesses();
   const { data: categories, isLoading: categoriesLoading } = useTransactionCategories();
+  const { data: paymentAccounts, isLoading: accountsLoading } = usePaymentAccounts();
   const updateTransaction = useUpdateTransaction();
   
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<TransactionFormData>({
@@ -150,7 +152,7 @@ export function TransactionForm({ onClose, editTransaction }: TransactionFormPro
     cat => cat.type === transactionType
   ) || [];
 
-  const isLoading = businessesLoading || categoriesLoading;
+  const isLoading = businessesLoading || categoriesLoading || accountsLoading;
   const showInvoiceOption = !isEditing && transactionType !== 'transfer';
   const invoiceTypeLabel = transactionType === 'income' ? 'Factura de Venta' : 'Factura de Compra';
 
@@ -238,15 +240,16 @@ export function TransactionForm({ onClose, editTransaction }: TransactionFormPro
             <Label>Cuenta de Egreso</Label>
             <Select 
               value={watch('fromAccount')} 
-              onValueChange={(value) => setValue('fromAccount', value as AccountType)}
+              onValueChange={(value) => setValue('fromAccount', value)}
+              disabled={isLoading}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Seleccionar cuenta" />
               </SelectTrigger>
               <SelectContent>
-                {ACCOUNT_TYPES.map((account) => (
-                  <SelectItem key={account} value={account}>
-                    {account}
+                {paymentAccounts?.map((account) => (
+                  <SelectItem key={account.id} value={account.name}>
+                    {account.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -259,15 +262,16 @@ export function TransactionForm({ onClose, editTransaction }: TransactionFormPro
             <Label>Cuenta de Ingreso</Label>
             <Select 
               value={watch('toAccount')} 
-              onValueChange={(value) => setValue('toAccount', value as AccountType)}
+              onValueChange={(value) => setValue('toAccount', value)}
+              disabled={isLoading}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Seleccionar cuenta" />
               </SelectTrigger>
               <SelectContent>
-                {ACCOUNT_TYPES.map((account) => (
-                  <SelectItem key={account} value={account}>
-                    {account}
+                {paymentAccounts?.map((account) => (
+                  <SelectItem key={account.id} value={account.name}>
+                    {account.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -282,15 +286,16 @@ export function TransactionForm({ onClose, editTransaction }: TransactionFormPro
             <Label>Desde Cuenta</Label>
             <Select 
               value={watch('fromAccount')} 
-              onValueChange={(value) => setValue('fromAccount', value as AccountType)}
+              onValueChange={(value) => setValue('fromAccount', value)}
+              disabled={isLoading}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Seleccionar" />
               </SelectTrigger>
               <SelectContent>
-                {ACCOUNT_TYPES.map((account) => (
-                  <SelectItem key={account} value={account}>
-                    {account}
+                {paymentAccounts?.map((account) => (
+                  <SelectItem key={account.id} value={account.name}>
+                    {account.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -300,15 +305,16 @@ export function TransactionForm({ onClose, editTransaction }: TransactionFormPro
             <Label>Hacia Cuenta</Label>
             <Select 
               value={watch('toAccount')} 
-              onValueChange={(value) => setValue('toAccount', value as AccountType)}
+              onValueChange={(value) => setValue('toAccount', value)}
+              disabled={isLoading}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Seleccionar" />
               </SelectTrigger>
               <SelectContent>
-                {ACCOUNT_TYPES.map((account) => (
-                  <SelectItem key={account} value={account}>
-                    {account}
+                {paymentAccounts?.map((account) => (
+                  <SelectItem key={account.id} value={account.name}>
+                    {account.name}
                   </SelectItem>
                 ))}
               </SelectContent>

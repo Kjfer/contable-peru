@@ -237,6 +237,30 @@ export type Database = {
           },
         ]
       }
+      payment_accounts: {
+        Row: {
+          created_at: string
+          id: number
+          is_active: boolean
+          name: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          is_active?: boolean
+          name: string
+          type?: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          is_active?: boolean
+          name?: string
+          type?: string
+        }
+        Relationships: []
+      }
       transaction_categories: {
         Row: {
           created_at: string | null

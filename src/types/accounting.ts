@@ -1,6 +1,7 @@
 export type TransactionType = 'income' | 'expense' | 'transfer';
 
-export type AccountType = 'BCP' | 'Interbank' | 'Yape' | 'Caja Chica';
+// AccountType is now dynamic from the database, but we keep it as string for compatibility
+export type AccountType = string;
 
 export interface Business {
   id: string;
@@ -105,4 +106,5 @@ export const TRANSACTION_CATEGORIES: TransactionCategory[] = [
   { id: 24, name: 'Otros gastos operativos', type: 'expense' },
 ];
 
-export const ACCOUNT_TYPES: AccountType[] = ['BCP', 'Interbank', 'Yape', 'Caja Chica'];
+// ACCOUNT_TYPES is now fetched from the database via usePaymentAccounts hook
+export const ACCOUNT_TYPES: AccountType[] = [];

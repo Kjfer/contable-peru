@@ -4,6 +4,7 @@ import { BusinessFilter } from '@/components/BusinessFilter';
 import { PeriodFilter } from '@/components/PeriodFilter';
 import { IncomeStatement } from '@/components/IncomeStatement';
 import { BalanceSheet } from '@/components/BalanceSheet';
+import { AccountBalancesReport } from '@/components/AccountBalancesReport';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useIncomeStatementData } from '@/hooks/useIncomeStatementData';
@@ -127,6 +128,12 @@ export default function Reports() {
             </Button>
           </div>
           <BalanceSheet businessId={selectedBusiness} period={selectedPeriod} />
+        </div>
+
+        {/* Saldos por Cuenta Bancaria */}
+        <div className="space-y-4">
+          <h2 className="text-2xl font-bold text-foreground">Saldos por Cuenta</h2>
+          <AccountBalancesReport businessId={selectedBusiness} period={selectedPeriod} />
         </div>
       </div>
     </div>

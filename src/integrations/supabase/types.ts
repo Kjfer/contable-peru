@@ -292,6 +292,7 @@ export type Database = {
           description: string | null
           from_account: string | null
           id: string
+          id_referenced: string | null
           invoice_id: string | null
           is_invoiced: boolean
           reference: string | null
@@ -307,6 +308,7 @@ export type Database = {
           description?: string | null
           from_account?: string | null
           id?: string
+          id_referenced?: string | null
           invoice_id?: string | null
           is_invoiced?: boolean
           reference?: string | null
@@ -322,6 +324,7 @@ export type Database = {
           description?: string | null
           from_account?: string | null
           id?: string
+          id_referenced?: string | null
           invoice_id?: string | null
           is_invoiced?: boolean
           reference?: string | null

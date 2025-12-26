@@ -51,5 +51,33 @@ export function getDateRangeFromPeriod(period: string): { startDate: string; end
   }
 }
 
+export function getPeriodLabel(period: string): string {
+  const now = new Date();
+  
+  // Check if it's a specific month format (YYYY-MM)
+  if (period && period.match(/^\d{4}-\d{2}$/)) {
+    const [year, month] = period.split('-').map(Number);
+    const date = new Date(year, month - 1, 1);
+    return format(date, 'MMMM yyyy');
+  }
+  
+  switch (period) {
+    case 'current-month':
+      return format(now, 'MMMM yyyy');
+    case 'last-month':
+      return format(subMonths(now, 1), 'MMMM yyyy');
+    case 'current-quarter':
+      return `Q${Math.ceil((now.getMonth() + 1) / 3)} ${now.getFullYear()}`;
+    case 'current-year':
+      return `Año ${now.getFullYear()}`;
+    case 'last-year':
+      return `Año ${now.getFullYear() - 1}`;
+    case 'all':
+      return 'Todos los períodos';
+    default:
+      return format(now, 'MMMM yyyy');
+  }
+}
+
 // Alias for backward compatibility
 export const getPeriodDates = getDateRangeFromPeriod;

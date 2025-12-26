@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 
-interface AccountBalance {
+interface ChartAccountBalance {
   code: string;
   name: string;
   balance: number;
@@ -8,8 +8,8 @@ interface AccountBalance {
 }
 
 interface IncomeStatementData {
-  incomeAccounts: AccountBalance[];
-  expenseAccounts: AccountBalance[];
+  incomeAccounts: ChartAccountBalance[];
+  expenseAccounts: ChartAccountBalance[];
   totalIncome: number;
   totalExpenses: number;
   netIncome: number;
@@ -18,12 +18,39 @@ interface IncomeStatementData {
 }
 
 interface BalanceSheetData {
-  assetAccounts: AccountBalance[];
-  liabilityAccounts: AccountBalance[];
-  equityAccounts: AccountBalance[];
+  assetAccounts: ChartAccountBalance[];
+  liabilityAccounts: ChartAccountBalance[];
+  equityAccounts: ChartAccountBalance[];
   totalAssets: number;
   totalLiabilities: number;
   totalEquity: number;
+  periodLabel: string;
+  businessName: string;
+}
+
+interface AccountMovement {
+  date: string;
+  description: string;
+  type: 'income' | 'expense' | 'transfer_in' | 'transfer_out';
+  amount: number;
+  balance: number;
+  businessName?: string;
+}
+
+interface PaymentAccountBalance {
+  accountName: string;
+  accountType: string;
+  totalIncome: number;
+  totalExpense: number;
+  netBalance: number;
+  movements: AccountMovement[];
+}
+
+interface AccountBalancesReportData {
+  accounts: PaymentAccountBalance[];
+  totalIncome: number;
+  totalExpense: number;
+  totalBalance: number;
   periodLabel: string;
   businessName: string;
 }
@@ -36,12 +63,29 @@ const formatCurrency = (amount: number): string => {
   }).format(amount);
 };
 
-const groupByCategory = (accounts: AccountBalance[]): Record<string, AccountBalance[]> => {
+const groupByCategory = (accounts: ChartAccountBalance[]): Record<string, ChartAccountBalance[]> => {
   return accounts.reduce((acc, item) => {
     if (!acc[item.category]) acc[item.category] = [];
     acc[item.category].push(item);
     return acc;
-  }, {} as Record<string, AccountBalance[]>);
+  }, {} as Record<string, ChartAccountBalance[]>);
+};
+
+const getAccountTypeLabel = (type: string): string => {
+  switch (type) {
+    case 'bank': return 'Banco';
+    case 'wallet': return 'Billetera Digital';
+    case 'cash': return 'Efectivo';
+    default: return type;
+  }
+};
+
+const formatDatePDF = (dateString: string): string => {
+  return new Date(dateString).toLocaleDateString('es-PE', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
 };
 
 export function exportIncomeStatementToPDF(data: IncomeStatementData): void {
@@ -360,4 +404,139 @@ export function exportBalanceSheetToPDF(data: BalanceSheetData): void {
   doc.text(`Generado el ${today}`, pageWidth / 2, 285, { align: 'center' });
 
   doc.save(`balance-general-${data.periodLabel.replace(/\s/g, '-')}.pdf`);
+}
+
+export function exportAccountBalancesReportToPDF(data: AccountBalancesReportData): void {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  let y = 20;
+
+  // Header
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.text('REPORTE DE SALDOS POR CUENTA', pageWidth / 2, y, { align: 'center' });
+  
+  y += 10;
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'normal');
+  doc.text(data.businessName, pageWidth / 2, y, { align: 'center' });
+  
+  y += 8;
+  doc.setFontSize(10);
+  doc.text(`Periodo: ${data.periodLabel}`, pageWidth / 2, y, { align: 'center' });
+  
+  y += 15;
+
+  // Summary section
+  doc.setFillColor(240, 240, 240);
+  doc.rect(20, y, pageWidth - 40, 25, 'F');
+  
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  y += 8;
+  doc.text('Total Entradas:', 30, y);
+  doc.setFont('helvetica', 'normal');
+  doc.text(formatCurrency(data.totalIncome), 70, y);
+  
+  doc.setFont('helvetica', 'bold');
+  doc.text('Total Salidas:', 100, y);
+  doc.setFont('helvetica', 'normal');
+  doc.text(formatCurrency(data.totalExpense), 135, y);
+  
+  y += 10;
+  doc.setFont('helvetica', 'bold');
+  doc.text('Saldo Total:', 30, y);
+  doc.setFont('helvetica', 'normal');
+  doc.text(formatCurrency(data.totalBalance), 70, y);
+  
+  y += 20;
+
+  // Accounts section
+  for (const account of data.accounts) {
+    // Check if we need a new page
+    if (y > 240) {
+      doc.addPage();
+      y = 20;
+    }
+
+    // Account header
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.setDrawColor(0, 100, 200);
+    doc.setLineWidth(0.5);
+    doc.line(20, y, pageWidth - 20, y);
+    y += 6;
+    
+    doc.text(account.accountName, 20, y);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`(${getAccountTypeLabel(account.accountType)})`, 20 + doc.getTextWidth(account.accountName) + 3, y);
+    
+    // Account summary on the right
+    doc.setFontSize(9);
+    const summaryX = pageWidth - 20;
+    doc.text(`Saldo: ${formatCurrency(account.netBalance)}`, summaryX, y, { align: 'right' });
+    
+    y += 5;
+    doc.setFontSize(8);
+    doc.text(`Entradas: ${formatCurrency(account.totalIncome)}  |  Salidas: ${formatCurrency(account.totalExpense)}`, 25, y);
+    
+    y += 8;
+
+    // Movements table
+    if (account.movements.length > 0) {
+      // Table header
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.2);
+      doc.line(25, y, pageWidth - 25, y);
+      y += 4;
+      doc.text('Fecha', 25, y);
+      doc.text('Descripcion', 50, y);
+      doc.text('Monto', 130, y, { align: 'right' });
+      doc.text('Saldo', pageWidth - 25, y, { align: 'right' });
+      y += 2;
+      doc.line(25, y, pageWidth - 25, y);
+      y += 4;
+
+      doc.setFont('helvetica', 'normal');
+      for (const movement of account.movements) {
+        if (y > 270) {
+          doc.addPage();
+          y = 20;
+        }
+
+        doc.text(formatDatePDF(movement.date), 25, y);
+        
+        // Truncate description if too long
+        const maxDescLength = 60;
+        const desc = movement.description.length > maxDescLength 
+          ? movement.description.substring(0, maxDescLength) + '...' 
+          : movement.description;
+        doc.text(desc, 50, y);
+        
+        const amountSign = movement.type === 'income' || movement.type === 'transfer_in' ? '+' : '-';
+        doc.text(`${amountSign}${formatCurrency(movement.amount)}`, 130, y, { align: 'right' });
+        doc.text(formatCurrency(movement.balance), pageWidth - 25, y, { align: 'right' });
+        
+        y += 4;
+      }
+    } else {
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'italic');
+      doc.text('Sin movimientos en este periodo', 25, y);
+      y += 4;
+    }
+
+    y += 8;
+  }
+
+  // Footer
+  const today = new Date().toLocaleDateString('es-PE');
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Generado el ${today}`, pageWidth / 2, 285, { align: 'center' });
+
+  doc.save(`saldos-por-cuenta-${data.periodLabel.replace(/\s/g, '-')}.pdf`);
 }

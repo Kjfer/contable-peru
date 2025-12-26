@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAccountBalances, AccountBalance } from "@/hooks/useAccountBalances";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Accordion,
   AccordionContent,
@@ -16,7 +17,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Building2, Wallet, Banknote, TrendingUp, TrendingDown, ArrowRightLeft } from "lucide-react";
+import { Building2, Wallet, Banknote, TrendingUp, TrendingDown, ArrowRightLeft, FileDown } from "lucide-react";
+import { exportAccountBalancesReportToPDF } from "@/lib/pdfExport";
+import { useBusinesses } from "@/hooks/useBusinesses";
+import { getPeriodLabel } from "@/lib/periodUtils";
 
 interface AccountBalancesReportProps {
   businessId: string;
@@ -187,6 +191,7 @@ function AccountCard({ account }: { account: AccountBalance }) {
 
 export function AccountBalancesReport({ businessId, period }: AccountBalancesReportProps) {
   const { data: accounts, isLoading, error } = useAccountBalances(businessId, period);
+  const { data: businesses } = useBusinesses();
 
   if (isLoading) {
     return (
@@ -217,11 +222,34 @@ export function AccountBalancesReport({ businessId, period }: AccountBalancesRep
   const totalIncome = accounts?.reduce((sum, acc) => sum + acc.totalIncome, 0) || 0;
   const totalExpense = accounts?.reduce((sum, acc) => sum + acc.totalExpense, 0) || 0;
 
+  const handleExportPDF = () => {
+    if (!accounts) return;
+    
+    const businessName = businessId === 'all' 
+      ? 'Todos los negocios' 
+      : businesses?.find(b => b.id === businessId)?.name || 'Negocio';
+    
+    exportAccountBalancesReportToPDF({
+      accounts,
+      totalIncome,
+      totalExpense,
+      totalBalance,
+      periodLabel: getPeriodLabel(period),
+      businessName,
+    });
+  };
+
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>Saldos por Cuenta</CardTitle>
+          <div className="flex items-center gap-3">
+            <CardTitle>Saldos por Cuenta</CardTitle>
+            <Button variant="outline" size="sm" onClick={handleExportPDF}>
+              <FileDown className="h-4 w-4 mr-1" />
+              Exportar PDF
+            </Button>
+          </div>
           <div className="flex items-center gap-6 text-sm">
             <div className="text-right">
               <p className="text-muted-foreground">Total Entradas</p>

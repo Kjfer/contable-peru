@@ -69,6 +69,8 @@ interface TransactionData {
   invoiceNumber?: string;
   clientSupplier?: string;
   ruc?: string;
+  currency?: string;
+  idReferenced?: string;
 }
 
 interface InvoiceData {
@@ -104,6 +106,8 @@ async function createTransaction(data: TransactionData) {
       description: data.description,
       reference: data.reference || null,
       is_invoiced: data.isInvoiced || false,
+      currency: data.currency || 'PEN',
+      id_referenced: data.idReferenced || null,
     })
     .select()
     .single();
@@ -203,6 +207,7 @@ export async function createTransactionWithInvoice(data: TransactionData) {
       subtotal: Math.round(subtotal * 100) / 100,
       igv: Math.round(igv * 100) / 100,
       total: data.amount,
+      currency: data.currency || 'PEN',
     })
     .select()
     .single();
@@ -237,6 +242,8 @@ export async function createTransactionWithInvoice(data: TransactionData) {
       reference: data.invoiceNumber || data.reference || null,
       is_invoiced: true,
       invoice_id: invoice.id,
+      currency: data.currency || 'PEN',
+      id_referenced: data.idReferenced || null,
     })
     .select()
     .single();

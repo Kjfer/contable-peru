@@ -74,6 +74,7 @@ export function TransactionList({ transactions, onEdit, onDelete }: TransactionL
               <th className="px-6 py-3 text-left text-sm font-semibold">Descripción</th>
               <th className="px-6 py-3 text-left text-sm font-semibold">Cuentas</th>
               <th className="px-6 py-3 text-right text-sm font-semibold">Monto</th>
+              <th className="px-6 py-3 text-center text-sm font-semibold">Moneda</th>
               <th className="px-6 py-3 text-center text-sm font-semibold">Factura</th>
               <th className="px-6 py-3 text-center text-sm font-semibold">Acciones</th>
             </tr>
@@ -122,6 +123,9 @@ export function TransactionList({ transactions, onEdit, onDelete }: TransactionL
                   >
                     {formatCurrency(transaction.amount)}
                   </span>
+                </td>
+                <td className="px-6 py-4 text-center">
+                  <Badge variant="outline">{transaction.currency || 'PEN'}</Badge>
                 </td>
                 <td className="px-6 py-4 text-center">
                   {transaction.isInvoiced ? (

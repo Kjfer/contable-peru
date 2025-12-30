@@ -1,17 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { getDateRangeFromPeriod } from '@/lib/periodUtils';
-
-interface DashboardMetrics {
-  totalIncome: number;
-  totalExpenses: number;
-  netProfit: number;
-  profitMargin: number;
-  igvCompras: number;
-  igvVentas: number;
-  creditoFiscalNeto: number;
-  monthlyTrend: Array<{ mes: string; ingresos: number; egresos: number }>;
-}
+import { CurrencyMetrics, DashboardMetricsResponse } from '@/types/accounting';
 
 interface UseDashboardMetricsOptions {
   businessId?: string;
@@ -24,8 +14,8 @@ export function useDashboardMetrics(options: UseDashboardMetricsOptions = {}) {
 
   return useQuery({
     queryKey: ['dashboard_metrics', businessId, period],
-    queryFn: async (): Promise<DashboardMetrics> => {
-      // Fetch transactions for income/expenses
+    queryFn: async (): Promise<DashboardMetricsResponse> => {
+      // Fetch all transactions for the period
       let transactionsQuery = supabase
         .from('transactions')
         .select('*')
@@ -39,100 +29,133 @@ export function useDashboardMetrics(options: UseDashboardMetricsOptions = {}) {
       const { data: transactions, error: transactionsError } = await transactionsQuery;
       if (transactionsError) throw transactionsError;
 
-      // Calculate totals from transactions
-      const totalIncome = (transactions || [])
-        .filter(t => t.type === 'income')
-        .reduce((sum, t) => sum + Number(t.amount), 0);
+      // Group transactions by currency
+      const groupedByCurrency = new Map<string, typeof transactions>();
+      (transactions || []).forEach(transaction => {
+        const currency = transaction.currency || 'PEN'; // Default to PEN if not specified
+        if (!groupedByCurrency.has(currency)) {
+          groupedByCurrency.set(currency, []);
+        }
+        groupedByCurrency.get(currency)!.push(transaction);
+      });
 
-      const totalExpenses = (transactions || [])
-        .filter(t => t.type === 'expense')
-        .reduce((sum, t) => sum + Number(t.amount), 0);
+      // Calculate metrics for each currency
+      const currencyMetrics: CurrencyMetrics[] = [];
+      const availableCurrencies = Array.from(groupedByCurrency.keys()).sort();
 
-      const netProfit = totalIncome - totalExpenses;
-      const profitMargin = totalIncome > 0 ? (netProfit / totalIncome) * 100 : 0;
+      for (const currency of availableCurrencies) {
+        const currencyTransactions = groupedByCurrency.get(currency) || [];
 
-      // Fetch IGV totals using the database function
-      const { data: igvData, error: igvError } = await supabase
-        .rpc('calculate_igv_totals', {
-          business_filter: businessId === 'all' ? null : businessId,
-          start_date: startDate,
-          end_date: endDate,
+        const totalIncome = currencyTransactions
+          .filter(t => t.type === 'income')
+          .reduce((sum, t) => sum + Number(t.amount), 0);
+
+        const totalExpenses = currencyTransactions
+          .filter(t => t.type === 'expense')
+          .reduce((sum, t) => sum + Number(t.amount), 0);
+
+        const netProfit = totalIncome - totalExpenses;
+        const profitMargin = totalIncome > 0 ? (netProfit / totalIncome) * 100 : 0;
+        const cashFlow = currencyTransactions
+          .filter(t => t.type === 'transfer')
+          .reduce((sum, t) => sum + Number(t.amount), 0);
+
+        // Calculate IGV totals using the database function
+        const { data: igvData, error: igvError } = await supabase
+          .rpc('calculate_igv_totals', {
+            business_filter: businessId === 'all' ? null : businessId,
+            start_date: startDate,
+            end_date: endDate,
+            currency_filter: currency,
+          })
+          .catch(() => ({ data: null, error: null }));
+
+        const igvResult = igvData?.[0] || { igv_ventas: 0, igv_compras: 0, credito_fiscal: 0 };
+
+        // Calculate monthly trend for this currency
+        const monthlyTrend = await calculateMonthlyTrendByCurrency(
+          businessId,
+          period,
+          currency
+        );
+
+        currencyMetrics.push({
+          currency,
+          totalIncome,
+          totalExpenses,
+          netProfit,
+          profitMargin,
+          cashFlow,
+          igvCompras: Number(igvResult.igv_compras) || 0,
+          igvVentas: Number(igvResult.igv_ventas) || 0,
+          creditoFiscalNeto: Number(igvResult.credito_fiscal) || 0,
+          monthlyTrend,
         });
-
-      if (igvError) throw igvError;
-
-      const igvResult = igvData?.[0] || { igv_ventas: 0, igv_compras: 0, credito_fiscal: 0 };
-
-      // Calculate monthly trend (last 5 months)
-      const monthlyTrend = await calculateMonthlyTrend(businessId, period);
+      }
 
       return {
-        totalIncome,
-        totalExpenses,
-        netProfit,
-        profitMargin,
-        igvCompras: Number(igvResult.igv_compras) || 0,
-        igvVentas: Number(igvResult.igv_ventas) || 0,
-        creditoFiscalNeto: Number(igvResult.credito_fiscal) || 0,
-        monthlyTrend,
+        currencyMetrics,
+        availableCurrencies,
       };
     },
   });
 }
 
-async function calculateMonthlyTrend(businessId: string, period: string): Promise<Array<{ mes: string; ingresos: number; egresos: number }>> {
+async function calculateMonthlyTrendByCurrency(
+  businessId: string,
+  period: string,
+  currency: string
+): Promise<Array<{ mes: string; ingresos: number; egresos: number }>> {
   const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
   const result: Array<{ mes: string; ingresos: number; egresos: number }> = [];
-  
-  // Check if period is a specific month (YYYY-MM format)
+
   const isSpecificMonth = /^\d{4}-\d{2}$/.test(period);
-  
+
   let monthsToShow: Array<{ year: number; month: number }> = [];
-  
+
   if (isSpecificMonth) {
-    // Show only the selected month
     const [year, month] = period.split('-').map(Number);
     monthsToShow = [{ year, month: month - 1 }];
   } else {
-    // Show last 5 months for other period types
     const now = new Date();
     for (let i = 4; i >= 0; i--) {
       const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
       monthsToShow.push({ year: date.getFullYear(), month: date.getMonth() });
     }
   }
-  
+
   for (const { year, month } of monthsToShow) {
     const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
     const lastDay = new Date(year, month + 1, 0).getDate();
     const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${lastDay}`;
-    
+
     let query = supabase
       .from('transactions')
       .select('type, amount')
       .gte('date', startDate)
-      .lte('date', endDate);
-    
+      .lte('date', endDate)
+      .eq('currency', currency);
+
     if (businessId !== 'all') {
       query = query.eq('business_id', businessId);
     }
-    
+
     const { data: transactions } = await query;
-    
+
     const ingresos = (transactions || [])
       .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + Number(t.amount), 0);
-    
+
     const egresos = (transactions || [])
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + Number(t.amount), 0);
-    
+
     result.push({
       mes: `${months[month]} ${year}`,
       ingresos,
       egresos,
     });
   }
-  
+
   return result;
 }

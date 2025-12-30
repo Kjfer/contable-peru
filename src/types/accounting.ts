@@ -29,6 +29,8 @@ export interface Transaction {
   createdAt?: string;
   isInvoiced?: boolean;
   invoiceId?: string;
+  currency?: string;
+  idReferenced?: string;
 }
 
 export interface Invoice {
@@ -69,6 +71,19 @@ export interface FinancialMetrics {
   netProfit: number;
   profitMargin: number;
   cashFlow: number;
+}
+
+export interface CurrencyMetrics extends FinancialMetrics {
+  currency: string;
+  igvCompras: number;
+  igvVentas: number;
+  creditoFiscalNeto: number;
+  monthlyTrend: Array<{ mes: string; ingresos: number; egresos: number }>;
+}
+
+export interface DashboardMetricsResponse {
+  currencyMetrics: CurrencyMetrics[];
+  availableCurrencies: string[];
 }
 
 export interface FinancialRatios {

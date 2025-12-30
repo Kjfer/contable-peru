@@ -101,6 +101,7 @@ export function useUpdateTransaction() {
       toAccount?: string;
       description: string;
       reference?: string;
+      currency?: string;
     }) => {
       const { error } = await supabase
         .from('transactions')
@@ -114,6 +115,7 @@ export function useUpdateTransaction() {
           to_account: data.toAccount || null,
           description: data.description,
           reference: data.reference || null,
+          currency: data.currency || 'PEN',
         })
         .eq('id', data.id);
 

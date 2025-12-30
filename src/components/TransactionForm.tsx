@@ -11,6 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useBusinesses } from '@/hooks/useBusinesses';
 import { useTransactionCategories } from '@/hooks/useTransactionCategories';
 import { usePaymentAccounts } from '@/hooks/usePaymentAccounts';
+import { useCurrencies } from '@/hooks/useCurrencies';
 import { useUpdateTransaction } from '@/hooks/useTransactions';
 import { createTransactionWithInvoice } from '@/lib/accountingService';
 import { TransactionType, Transaction } from '@/types/accounting';
@@ -27,6 +28,7 @@ const transactionSchema = z.object({
   toAccount: z.string().optional(),
   description: z.string().min(1, 'Descripción requerida'),
   reference: z.string().optional(),
+  currency: z.string().default('PEN'),
   isInvoiced: z.boolean().default(false),
   invoiceNumber: z.string().optional(),
   clientSupplier: z.string().optional(),
@@ -67,6 +69,7 @@ export function TransactionForm({ onClose, editTransaction }: TransactionFormPro
   const { data: businesses, isLoading: businessesLoading } = useBusinesses();
   const { data: categories, isLoading: categoriesLoading } = useTransactionCategories();
   const { data: paymentAccounts, isLoading: accountsLoading } = usePaymentAccounts();
+  const { data: currencies, isLoading: currenciesLoading } = useCurrencies();
   const updateTransaction = useUpdateTransaction();
   
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<TransactionFormData>({
@@ -81,6 +84,7 @@ export function TransactionForm({ onClose, editTransaction }: TransactionFormPro
       toAccount: editTransaction?.toAccount || '',
       description: editTransaction?.description || '',
       reference: editTransaction?.reference || '',
+      currency: editTransaction?.currency || 'PEN',
       isInvoiced: false,
     },
   });
@@ -96,6 +100,9 @@ export function TransactionForm({ onClose, editTransaction }: TransactionFormPro
       }
       if (editTransaction.toAccount) {
         setValue('toAccount', editTransaction.toAccount);
+      }
+      if (editTransaction.currency) {
+        setValue('currency', editTransaction.currency);
       }
     }
   }, [editTransaction, setValue]);
@@ -115,6 +122,7 @@ export function TransactionForm({ onClose, editTransaction }: TransactionFormPro
           toAccount: data.toAccount,
           description: data.description,
           reference: data.reference,
+          currency: data.currency,
         });
         toast.success('Transacción actualizada');
       } else {
@@ -128,6 +136,7 @@ export function TransactionForm({ onClose, editTransaction }: TransactionFormPro
           toAccount: data.toAccount,
           description: data.description,
           reference: data.reference,
+          currency: data.currency,
           isInvoiced: data.isInvoiced,
           invoiceNumber: data.invoiceNumber,
           clientSupplier: data.clientSupplier,
@@ -152,7 +161,7 @@ export function TransactionForm({ onClose, editTransaction }: TransactionFormPro
     cat => cat.type === transactionType
   ) || [];
 
-  const isLoading = businessesLoading || categoriesLoading || accountsLoading;
+  const isLoading = businessesLoading || categoriesLoading || accountsLoading || currenciesLoading;
   const showInvoiceOption = !isEditing && transactionType !== 'transfer';
   const invoiceTypeLabel = transactionType === 'income' ? 'Factura de Venta' : 'Factura de Compra';
 
@@ -325,12 +334,33 @@ export function TransactionForm({ onClose, editTransaction }: TransactionFormPro
 
       <div className="grid gap-4 md:grid-cols-2">
         <div>
-          <Label>Monto (S/)</Label>
-          <Input
-            type="number"
-            step="0.01"
-            {...register('amount', { valueAsNumber: true })}
-          />
+          <Label>Monto</Label>
+          <div className="flex gap-2">
+            <Input
+              type="number"
+              step="0.01"
+              {...register('amount', { valueAsNumber: true })}
+              className="flex-1"
+            />
+            <Select 
+              value={watch('currency')} 
+              onValueChange={(value) => setValue('currency', value)}
+              disabled={isLoading}
+            >
+              <SelectTrigger className="w-[120px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="PEN">PEN</SelectItem>
+                <SelectItem value="USD">USD</SelectItem>
+                {currencies?.map((currency) => (
+                  <SelectItem key={currency.id} value={currency.symbol || `Currency${currency.id}`}>
+                    {currency.symbol || currency.description}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           {errors.amount && <p className="mt-1 text-sm text-destructive">{errors.amount.message}</p>}
         </div>
         <div>

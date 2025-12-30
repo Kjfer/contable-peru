@@ -18,9 +18,15 @@ export function useDashboardMetrics(options: UseDashboardMetricsOptions = {}) {
       // Fetch all transactions for the period
       let transactionsQuery = supabase
         .from('transactions')
-        .select('*')
-        .gte('date', startDate)
-        .lte('date', endDate);
+        .select('*');
+
+      // Only add date filters if they're not empty
+      if (startDate) {
+        transactionsQuery = transactionsQuery.gte('date', startDate);
+      }
+      if (endDate) {
+        transactionsQuery = transactionsQuery.lte('date', endDate);
+      }
 
       if (businessId !== 'all') {
         transactionsQuery = transactionsQuery.eq('business_id', businessId);

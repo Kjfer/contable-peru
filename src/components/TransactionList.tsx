@@ -121,7 +121,7 @@ export function TransactionList({ transactions, onEdit, onDelete }: TransactionL
                         : 'text-foreground'
                     }`}
                   >
-                    {formatCurrency(transaction.amount)}
+                    {formatCurrency(transaction.amount, transaction.currency || 'PEN')}
                   </span>
                 </td>
                 <td className="px-6 py-4 text-center">

@@ -36,6 +36,7 @@ export default function Transactions() {
     fromAccount: t.from_account || undefined,
     toAccount: t.to_account || undefined,
     reference: t.reference || undefined,
+    currency: t.currency || 'PEN',
     isInvoiced: t.is_invoiced || false,
     invoiceId: t.invoice_id || undefined,
   }));

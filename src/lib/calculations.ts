@@ -56,10 +56,25 @@ export function calculateFinancialRatios(
   };
 }
 
-export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('es-PE', {
+export function formatCurrency(amount: number, currency: string = 'PEN'): string {
+  // Map of supported currencies with their Intl.NumberFormat codes
+  const currencyMap: { [key: string]: { code: string; locale: string } } = {
+    'PEN': { code: 'PEN', locale: 'es-PE' },
+    'USD': { code: 'USD', locale: 'en-US' },
+    'EUR': { code: 'EUR', locale: 'es-ES' },
+    'UYU': { code: 'UYU', locale: 'es-UY' },
+    'ARS': { code: 'ARS', locale: 'es-AR' },
+    'COP': { code: 'COP', locale: 'es-CO' },
+    'CLP': { code: 'CLP', locale: 'es-CL' },
+    'MXN': { code: 'MXN', locale: 'es-MX' },
+    'BRL': { code: 'BRL', locale: 'pt-BR' },
+  };
+
+  const currencyInfo = currencyMap[currency] || currencyMap['PEN'];
+  
+  return new Intl.NumberFormat(currencyInfo.locale, {
     style: 'currency',
-    currency: 'PEN',
+    currency: currencyInfo.code,
   }).format(amount);
 }
 

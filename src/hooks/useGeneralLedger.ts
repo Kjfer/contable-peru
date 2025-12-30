@@ -34,21 +34,24 @@ export function useGeneralLedger(options: UseGeneralLedgerOptions = {}) {
       let query = supabase
         .from('accounting_entry_lines')
         .select(`
+          id,
           account_code,
           account_name,
           debit,
           credit,
+          entry_id,
+          created_at,
           entry:accounting_entries(id, date, description, business_id)
         `)
         .order('account_code');
 
       const { data: lines, error } = await query;
       if (error) throw error;
-      if (!lines) return [];
+      if (!lines || lines.length === 0) return [];
 
       // Filter by business and period
       let filteredLines = lines.filter(line => {
-        const entry = line.entry as any;
+        const entry = (line as any).entry;
         if (!entry) return false;
         
         if (options.businessId && options.businessId !== 'all') {
@@ -73,7 +76,7 @@ export function useGeneralLedger(options: UseGeneralLedgerOptions = {}) {
       const accountsMap = new Map<string, AccountLedger>();
 
       filteredLines.forEach(line => {
-        const entry = line.entry as any;
+        const entry = (line as any).entry;
         if (!accountsMap.has(line.account_code)) {
           accountsMap.set(line.account_code, {
             code: line.account_code,

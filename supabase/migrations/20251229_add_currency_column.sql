@@ -8,7 +8,7 @@ CREATE INDEX IF NOT EXISTS idx_transactions_currency ON public.transactions(curr
 -- Add check constraint to ensure valid currencies
 ALTER TABLE public.transactions
 ADD CONSTRAINT chk_valid_currency CHECK (
-  currency IN ('PEN', 'USD', 'EUR', 'UYU', 'ARS', 'COP', 'CLP', 'MXN', 'BRL')
+  currency IN 
 );
 
 -- Update the updated_at column for existing transactions
